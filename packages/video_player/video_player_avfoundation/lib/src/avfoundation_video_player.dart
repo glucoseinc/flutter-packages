@@ -146,6 +146,10 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
           return VideoEvent(eventType: VideoEventType.bufferingStart);
         case 'bufferingEnd':
           return VideoEvent(eventType: VideoEventType.bufferingEnd);
+        case 'stoppedPictureInPicture':
+          return VideoEvent(eventType: VideoEventType.stoppedPictureInPicture);
+        case 'startedPictureInPicture':
+          return VideoEvent(eventType: VideoEventType.startedPictureInPicture);
         case 'isPlayingStateUpdate':
           return VideoEvent(
             eventType: VideoEventType.isPlayingStateUpdate,
@@ -166,6 +170,67 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
   Future<void> setMixWithOthers(bool mixWithOthers) {
     return _api
         .setMixWithOthers(MixWithOthersMessage(mixWithOthers: mixWithOthers));
+  }
+
+  @override
+  Future<bool> isPictureInPictureSupported() {
+    return _api.isPictureInPictureSupported();
+  }
+
+  @override
+  Future<void> setAutomaticallyStartsPictureInPicture({
+    required int textureId,
+    required bool enableStartPictureInPictureAutomaticallyFromInline,
+  }) {
+    return _api.setAutomaticallyStartsPictureInPicture(
+      AutomaticallyStartsPictureInPictureMessage(
+        textureId: textureId,
+        enableStartPictureInPictureAutomaticallyFromInline:
+            enableStartPictureInPictureAutomaticallyFromInline,
+      ),
+    );
+  }
+
+  @override
+  Future<void> setPictureInPictureOverlayRect({
+    required int textureId,
+    required Rect rect,
+  }) {
+    return _api.setPictureInPictureOverlayRect(
+      SetPictureInPictureOverlayRectMessage(
+        textureId: textureId,
+        rect: PictureInPictureOverlayRect(
+          top: rect.top,
+          left: rect.left,
+          width: rect.width,
+          height: rect.height,
+        ),
+      ),
+    );
+  }
+
+  @override
+  Future<void> startPictureInPicture(int textureId) {
+    return _api.startPictureInPicture(StartPictureInPictureMessage(
+      textureId: textureId,
+    ));
+  }
+
+  @override
+  Future<void> stopPictureInPicture(int textureId) {
+    return _api.stopPictureInPicture(StopPictureInPictureMessage(
+      textureId: textureId,
+    ));
+  }
+
+  @override
+  Future<void> replaceDataSource(int textureId, DataSource dataSource) {
+    return _api.replaceDataSource(ReplaceDataSourceMessage(
+      textureId: textureId,
+      uri: dataSource.uri,
+      formatHint: _videoFormatStringMap[dataSource.formatHint],
+      httpHeaders: dataSource.httpHeaders,
+    ));
   }
 
   EventChannel _eventChannelFor(int textureId) {

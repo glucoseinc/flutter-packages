@@ -102,6 +102,46 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
   Future<void> setMixWithOthers(bool mixWithOthers) {
     throw UnimplementedError('setMixWithOthers() has not been implemented.');
   }
+
+  /// Returns true if picture-in-picture is supported on the device.
+  Future<bool> isPictureInPictureSupported() async => false;
+
+  /// Enable/disable to start picture-in-picture automatically when the app goes to the background.
+  Future<void> setAutomaticallyStartsPictureInPicture({
+    required int textureId,
+    required bool enableStartPictureInPictureAutomaticallyFromInline,
+  }) {
+    throw UnimplementedError(
+        'setAutomaticallyStartsPictureInPicture() has not been implemented.');
+  }
+
+  /// Set the location of the video player view. So picture-in-picture can use it for animating.
+  /// The rect will represent the location of the video player view in Flutter. The rect will be
+  /// passed to the platform to position the native picture-in-picture overlay correctly.
+  Future<void> setPictureInPictureOverlayRect({
+    required int textureId,
+    required Rect rect,
+  }) {
+    throw UnimplementedError(
+        'setPictureInPictureOverlayRect() has not been implemented.');
+  }
+
+  /// Start picture-in-picture mode.
+  Future<void> startPictureInPicture(int textureId) {
+    throw UnimplementedError(
+        'startPictureInPicture() has not been implemented.');
+  }
+
+  /// Stop picture-in-picture mode.
+  Future<void> stopPictureInPicture(int textureId) {
+    throw UnimplementedError(
+        'stopPictureInPicture() has not been implemented.');
+  }
+
+  /// Replace video data source
+  Future<void> replaceDataSource(int textureId, DataSource dataSource) {
+    throw UnimplementedError('replaceDataSource() has not been implemented.');
+  }
 }
 
 class _PlaceholderImplementation extends VideoPlayerPlatform {}
@@ -286,6 +326,12 @@ enum VideoEventType {
 
   /// The video stopped to buffer.
   bufferingEnd,
+
+  /// The video is started picture-in-picture mode.
+  startedPictureInPicture,
+
+  /// The video is exited picture-in-picture mode.
+  stoppedPictureInPicture,
 
   /// The playback state of the video has changed.
   ///

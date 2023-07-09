@@ -6,8 +6,8 @@
 #import "FLTVideoPlayerPlugin_Test.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <AVKit/AVKit.h>
 #import <GLKit/GLKit.h>
-
 #import "AVAssetTrackUtils.h"
 #import "messages.g.h"
 
@@ -44,7 +44,8 @@
 
 @end
 
-@interface FLTVideoPlayer : NSObject <FlutterTexture, FlutterStreamHandler>
+@interface FLTVideoPlayer
+    : NSObject <FlutterTexture, FlutterStreamHandler, AVPictureInPictureControllerDelegate>
 @property(readonly, nonatomic) AVPlayer *player;
 @property(readonly, nonatomic) AVPlayerItemVideoOutput *videoOutput;
 // This is to fix 2 bugs: 1. blank video for encrypted video streams on iOS 16
@@ -52,8 +53,10 @@
 // streams (not just iOS 16).  (https://github.com/flutter/flutter/issues/109116).
 // An invisible AVPlayerLayer is used to overwrite the protection of pixel buffers in those streams
 // for issue #1, and restore the correct width and height for issue #2.
+// It is also used to start picture-in-picture
 @property(readonly, nonatomic) AVPlayerLayer *playerLayer;
 @property(readonly, nonatomic) CADisplayLink *displayLink;
+@property(nonatomic) AVPictureInPictureController *pictureInPictureController;
 @property(nonatomic) FlutterEventChannel *eventChannel;
 @property(nonatomic) FlutterEventSink eventSink;
 @property(nonatomic) CGAffineTransform preferredTransform;
@@ -61,6 +64,7 @@
 @property(nonatomic, readonly) BOOL isPlaying;
 @property(nonatomic) BOOL isLooping;
 @property(nonatomic, readonly) BOOL isInitialized;
+@property(nonatomic) BOOL isPictureInPictureStarted;
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
@@ -130,6 +134,17 @@ static void *rateContext = &rateContext;
                                                name:AVPlayerItemDidPlayToEndTimeNotification
                                              object:item];
 }
+
+- (void)removeObserverFromItem:(AVPlayerItem *)item {
+    [item removeObserver:self forKeyPath:@"status"];
+    [item removeObserver:self forKeyPath:@"loadedTimeRanges"];
+    [item removeObserver:self forKeyPath:@"presentationSize"];
+    [item removeObserver:self forKeyPath:@"duration"];
+    [item removeObserver:self forKeyPath:@"playbackLikelyToKeepUp"];
+    [item removeObserver:self forKeyPath:@"playbackBufferEmpty"];
+    [item removeObserver:self forKeyPath:@"playbackBufferFull"];
+}
+
 
 - (void)itemDidPlayToEndTime:(NSNotification *)notification {
   if (_isLooping) {
@@ -237,36 +252,7 @@ NS_INLINE UIViewController *rootViewController(void) {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
 
-  AVAsset *asset = [item asset];
-  void (^assetCompletionHandler)(void) = ^{
-    if ([asset statusOfValueForKey:@"tracks" error:nil] == AVKeyValueStatusLoaded) {
-      NSArray *tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
-      if ([tracks count] > 0) {
-        AVAssetTrack *videoTrack = tracks[0];
-        void (^trackCompletionHandler)(void) = ^{
-          if (self->_disposed) return;
-          if ([videoTrack statusOfValueForKey:@"preferredTransform"
-                                        error:nil] == AVKeyValueStatusLoaded) {
-            // Rotate the video by using a videoComposition and the preferredTransform
-            self->_preferredTransform = FLTGetStandardizedTransformForTrack(videoTrack);
-            // Note:
-            // https://developer.apple.com/documentation/avfoundation/avplayeritem/1388818-videocomposition
-            // Video composition can only be used with file-based media and is not supported for
-            // use with media served using HTTP Live Streaming.
-            AVMutableVideoComposition *videoComposition =
-                [self getVideoCompositionWithTransform:self->_preferredTransform
-                                             withAsset:asset
-                                        withVideoTrack:videoTrack];
-            item.videoComposition = videoComposition;
-          }
-        };
-        [videoTrack loadValuesAsynchronouslyForKeys:@[ @"preferredTransform" ]
-                                  completionHandler:trackCompletionHandler];
-      }
-    }
-  };
-
-  _player = [playerFactory playerWithPlayerItem:item];
+  _player = [AVPlayer playerWithPlayerItem:item];
   _player.actionAtItemEnd = AVPlayerActionAtItemEndNone;
 
   // This is to fix 2 bugs: 1. blank video for encrypted video streams on iOS 16
@@ -274,16 +260,119 @@ NS_INLINE UIViewController *rootViewController(void) {
   // video streams (not just iOS 16).  (https://github.com/flutter/flutter/issues/109116). An
   // invisible AVPlayerLayer is used to overwrite the protection of pixel buffers in those streams
   // for issue #1, and restore the correct width and height for issue #2.
+  // It is also used to start picture-in-picture
   _playerLayer = [AVPlayerLayer playerLayerWithPlayer:_player];
+  // We set the opacity to 0.001 because it is an overlay.
+  // Picture-in-picture will show a placeholder over other widgets when video_player is used in a
+  // ScrollView, PageView or in a widget that changes location.
+  _playerLayer.opacity = 0.001;
   [rootViewController().view.layer addSublayer:_playerLayer];
+
+  [self setupPipController];
 
   [self createVideoOutputAndDisplayLink:frameUpdater];
 
   [self addObserversForItem:item player:_player];
 
-  [asset loadValuesAsynchronouslyForKeys:@[ @"tracks" ] completionHandler:assetCompletionHandler];
+  [self setupAssetTracks:item];
 
   return self;
+}
+
+- (void)setupAssetTracks:(AVPlayerItem *)item {
+    AVAsset *asset = [item asset];
+
+    void (^assetCompletionHandler)(void) = ^{
+        if ([asset statusOfValueForKey:@"tracks" error:nil] == AVKeyValueStatusLoaded) {
+            NSArray *tracks = [asset tracksWithMediaType:AVMediaTypeVideo];
+            if ([tracks count] > 0) {
+                AVAssetTrack *videoTrack = tracks[0];
+                void (^trackCompletionHandler)(void) = ^{
+                    if (self->_disposed) return;
+                    if ([videoTrack statusOfValueForKey:@"preferredTransform"
+                                                  error:nil] == AVKeyValueStatusLoaded) {
+                        // Rotate the video by using a videoComposition and the preferredTransform
+                        self->_preferredTransform = FLTGetStandardizedTransformForTrack(videoTrack);
+                        // Note:
+                        // https://developer.apple.com/documentation/avfoundation/avplayeritem/1388818-videocomposition
+                        // Video composition can only be used with file-based media and is not supported for
+                        // use with media served using HTTP Live Streaming.
+                        AVMutableVideoComposition *videoComposition =
+                        [self getVideoCompositionWithTransform:self->_preferredTransform
+                                                     withAsset:asset
+                                                withVideoTrack:videoTrack];
+                        item.videoComposition = videoComposition;
+                    }
+                };
+                [videoTrack loadValuesAsynchronouslyForKeys:@[ @"preferredTransform" ]
+                                          completionHandler:trackCompletionHandler];
+            }
+        }
+    };
+    [asset loadValuesAsynchronouslyForKeys:@[ @"tracks" ] completionHandler:assetCompletionHandler];
+}
+
+- (void)setupPipController {
+  if ([AVPictureInPictureController isPictureInPictureSupported]) {
+    self.pictureInPictureController =
+        [[AVPictureInPictureController alloc] initWithPlayerLayer:self.playerLayer];
+    [self setAutomaticallyStartsPictureInPicture:NO];
+    self.pictureInPictureController.delegate = self;
+  }
+}
+
+- (void)setAutomaticallyStartsPictureInPicture:
+    (BOOL)canStartPictureInPictureAutomaticallyFromInline {
+  if (!self.pictureInPictureController) return;
+  if (@available(iOS 14.2, *)) {
+    self.pictureInPictureController.canStartPictureInPictureAutomaticallyFromInline =
+        canStartPictureInPictureAutomaticallyFromInline;
+  }
+}
+
+- (void)setPictureInPictureOverlayRect:(CGRect)frame {
+  if (_player) {
+    self.playerLayer.frame = frame;
+  }
+}
+
+- (void)startOrStopPictureInPicture:(BOOL)shouldPictureInPictureStart {
+  if (![AVPictureInPictureController isPictureInPictureSupported] ||
+      self.isPictureInPictureStarted == shouldPictureInPictureStart) {
+    return;
+  }
+
+  self.isPictureInPictureStarted = shouldPictureInPictureStart;
+  if (self.pictureInPictureController && self.isPictureInPictureStarted &&
+      ![self.pictureInPictureController isPictureInPictureActive]) {
+    if (_eventSink != nil) {
+      // The event is sent here to make sure that the Flutter UI can be updated as soon as possible.
+      _eventSink(@{@"event" : @"startedPictureInPicture"});
+    }
+    [self.pictureInPictureController startPictureInPicture];
+  } else if (self.pictureInPictureController && !self.isPictureInPictureStarted &&
+             [self.pictureInPictureController isPictureInPictureActive]) {
+    [self.pictureInPictureController stopPictureInPicture];
+  }
+}
+
+#pragma mark - AVPictureInPictureControllerDelegate
+
+- (void)pictureInPictureControllerDidStopPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+  self.isPictureInPictureStarted = NO;
+  if (_eventSink != nil) {
+    _eventSink(@{@"event" : @"stoppedPictureInPicture"});
+  }
+}
+
+- (void)pictureInPictureControllerDidStartPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+  self.isPictureInPictureStarted = YES;
+  if (_eventSink != nil) {
+    _eventSink(@{@"event" : @"startingPictureInPicture"});
+  }
+  [self updatePlayingState];
 }
 
 - (void)observeValueForKeyPath:(NSString *)path
@@ -540,6 +629,14 @@ NS_INLINE UIViewController *rootViewController(void) {
   [_eventChannel setStreamHandler:nil];
 }
 
+- (void)replaceCurrentItem:(AVPlayerItem *)newItem {
+    [self removeObserverFromItem:self.player.currentItem];
+
+    [self.player replaceCurrentItemWithPlayerItem:newItem];
+    [self addObserversForItem:newItem player:_player];
+
+    [self setupAssetTracks:newItem];
+}
 @end
 
 @interface FLTVideoPlayerPlugin () <FLTAVFoundationVideoPlayerApi>
@@ -710,6 +807,77 @@ NS_INLINE UIViewController *rootViewController(void) {
                                            error:nil];
   } else {
     [[AVAudioSession sharedInstance] setCategory:AVAudioSessionCategoryPlayback error:nil];
+  }
+}
+
+- (nullable NSNumber *)isPictureInPictureSupported:
+    (FlutterError *_Nullable __autoreleasing *_Nonnull)error {
+  return @([AVPictureInPictureController isPictureInPictureSupported]);
+}
+
+- (void)setAutomaticallyStartsPictureInPicture:(FLTAutomaticallyStartsPictureInPictureMessage *)input
+                                        error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player
+      setAutomaticallyStartsPictureInPicture:input.enableStartPictureInPictureAutomaticallyFromInline
+                                                .boolValue];
+}
+
+- (void)setPictureInPictureOverlayRect:(FLTSetPictureInPictureOverlayRectMessage *)input
+                                 error:(FlutterError **)error {
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player setPictureInPictureOverlayRect:CGRectMake(input.rect.left.floatValue,
+                                                    input.rect.top.floatValue,
+                                                    input.rect.width.floatValue,
+                                                    input.rect.height.floatValue)];
+}
+
+- (BOOL)doesInfoPlistSupportPictureInPicture:(FlutterError **)error {
+  NSArray *backgroundModes = [NSBundle.mainBundle objectForInfoDictionaryKey:@"UIBackgroundModes"];
+  if (![backgroundModes isKindOfClass:[NSArray class]] ||
+      ![backgroundModes containsObject:@"audio"]) {
+    *error = [FlutterError errorWithCode:@"video_player"
+                                 message:@"missing audio UIBackgroundModes audio in Info.plist"
+                                 details:nil];
+    return NO;
+  }
+  return YES;
+}
+
+- (void)startPictureInPicture:(FLTStartPictureInPictureMessage *)input
+                        error:(FlutterError **)error {
+  if (![self doesInfoPlistSupportPictureInPicture:error]) {
+    return;
+  }
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player startOrStopPictureInPicture:YES];
+}
+
+- (void)stopPictureInPicture:(FLTStopPictureInPictureMessage *)input error:(FlutterError **)error {
+  if (![self doesInfoPlistSupportPictureInPicture:error]) {
+    return;
+  }
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [player startOrStopPictureInPicture:NO];
+}
+
+- (void)replaceDataSource:(FLTReplaceDataSourceMessage *)input error:(FlutterError **)error {
+  NSAssert([NSThread isMainThread], @"main thread required");
+  FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+
+  if (input.uri) {
+    NSDictionary<NSString *, NSString *> *headers = input.httpHeaders;
+    NSDictionary<NSString *, id> *options = nil;
+    if ([headers count] != 0) {
+      options = @{@"AVURLAssetHTTPHeaderFieldsKey" : headers};
+    }
+    AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:[NSURL URLWithString:input.uri] options:options];
+    AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
+
+    [player replaceCurrentItem:item];
+  } else {
+    *error = [FlutterError errorWithCode:@"video_player" message:@"not implemented" details:nil];
+    return;
   }
 }
 

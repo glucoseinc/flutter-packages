@@ -48,6 +48,7 @@ class VideoPlayerValue {
     this.isPlaying = false,
     this.isLooping = false,
     this.isBuffering = false,
+    this.isPictureInPictureActive = false,
     this.volume = 1.0,
     this.playbackSpeed = 1.0,
     this.rotationCorrection = 0,
@@ -106,6 +107,9 @@ class VideoPlayerValue {
   /// The current speed of the playback.
   final double playbackSpeed;
 
+  /// True if picture-in-picture is currently active.
+  final bool isPictureInPictureActive;
+
   /// A description of the error if present.
   ///
   /// If [hasError] is false this is `null`.
@@ -154,6 +158,7 @@ class VideoPlayerValue {
     bool? isPlaying,
     bool? isLooping,
     bool? isBuffering,
+    bool? isPictureInPictureActive,
     double? volume,
     double? playbackSpeed,
     int? rotationCorrection,
@@ -170,6 +175,8 @@ class VideoPlayerValue {
       isPlaying: isPlaying ?? this.isPlaying,
       isLooping: isLooping ?? this.isLooping,
       isBuffering: isBuffering ?? this.isBuffering,
+      isPictureInPictureActive:
+          isPictureInPictureActive ?? this.isPictureInPictureActive,
       volume: volume ?? this.volume,
       playbackSpeed: playbackSpeed ?? this.playbackSpeed,
       rotationCorrection: rotationCorrection ?? this.rotationCorrection,
@@ -192,6 +199,7 @@ class VideoPlayerValue {
         'isPlaying: $isPlaying, '
         'isLooping: $isLooping, '
         'isBuffering: $isBuffering, '
+        'isPictureInPictureActive: $isPictureInPictureActive, '
         'volume: $volume, '
         'playbackSpeed: $playbackSpeed, '
         'errorDescription: $errorDescription)';
@@ -463,6 +471,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         case VideoEventType.bufferingEnd:
           value = value.copyWith(isBuffering: false);
           break;
+        case VideoEventType.startedPictureInPicture:
+          value = value.copyWith(isPictureInPictureActive: true);
+          break;
+        case VideoEventType.stoppedPictureInPicture:
+          value = value.copyWith(isPictureInPictureActive: false);
+          break;
         case VideoEventType.isPlayingStateUpdate:
           value = value.copyWith(isPlaying: event.isPlaying);
           break;
@@ -583,6 +597,87 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
       return;
     }
     await _videoPlayerPlatform.setVolume(_textureId, value.volume);
+  }
+
+  /// Returns true if picture-in-picture is supported on the device.
+  Future<bool> isPictureInPictureSupported() =>
+      _videoPlayerPlatform.isPictureInPictureSupported();
+
+  /// Enable/disable to start picture-in-picture automatically when the app goes to the background.
+  Future<void> setAutomaticallyStartsPictureInPicture({
+    required bool enableStartPictureInPictureAutomaticallyFromInline,
+  }) async {
+    if (!value.isInitialized || _isDisposed) {
+      return;
+    }
+    await _videoPlayerPlatform.setAutomaticallyStartsPictureInPicture(
+      textureId: _textureId,
+      enableStartPictureInPictureAutomaticallyFromInline:
+          enableStartPictureInPictureAutomaticallyFromInline,
+    );
+  }
+
+  /// Set the location of the video player view. So picture-in-picture can use it for animating.
+  /// The rect will represent the location of the video player view in Flutter. The rect will be
+  /// passed to the platform to position the native picture-in-picture overlay correctly.
+  Future<void> setPictureInPictureOverlayRect({
+    required Rect rect,
+  }) async {
+    if (!value.isInitialized || _isDisposed) {
+      return;
+    }
+    await _videoPlayerPlatform.setPictureInPictureOverlayRect(
+      textureId: _textureId,
+      rect: rect,
+    );
+  }
+
+  /// Start picture-in-picture mode.
+  Future<void> startPictureInPicture() async {
+    if (!value.isInitialized || _isDisposed) {
+      return;
+    }
+    await _videoPlayerPlatform.startPictureInPicture(_textureId);
+  }
+
+  /// Stop picture-in-picture mode.
+  Future<void> stopPictureInPicture() async {
+    if (!value.isInitialized || _isDisposed) {
+      return;
+    }
+    await _videoPlayerPlatform.stopPictureInPicture(_textureId);
+  }
+
+  /// Replace video source
+  Future<void> replaceDataSource({
+    /// The URI to the video file. This will be in different formats depending on
+    /// the [DataSourceType] of the original video.
+    String? dataSource,
+
+    /// HTTP headers used for the request to the [dataSource].
+    /// Only for [VideoPlayerController.network].
+    /// Always empty for other video types.
+    Map<String, String>? httpHeaders,
+
+    /// **Android only**. Will override the platform's generic file format
+    /// detection with whatever is set here.
+    VideoFormat? formatHint,
+  }) async {
+    if (dataSourceType != DataSourceType.network) {
+      throw Error(); // Only `network` data source type is supported.
+    }
+
+    final newDataSourceDescription = DataSource(
+      sourceType: DataSourceType.network,
+      uri: dataSource ?? this.dataSource,
+      formatHint: formatHint ?? this.formatHint,
+      httpHeaders: httpHeaders ?? this.httpHeaders,
+    );
+
+    await _videoPlayerPlatform.replaceDataSource(
+      _textureId,
+      newDataSourceDescription,
+    );
   }
 
   Future<void> _applyPlaybackSpeed() async {

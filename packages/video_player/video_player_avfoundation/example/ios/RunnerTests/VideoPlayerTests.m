@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 @import AVFoundation;
+@import AVKit;
 @import video_player_avfoundation;
 @import XCTest;
 
@@ -370,7 +371,6 @@
                         }
                       }];
   [self waitForExpectationsWithTimeout:30.0 handler:nil];
-
   // Starts paused.
   AVPlayer *avPlayer = player.player;
   XCTAssertEqual(avPlayer.rate, 0);
@@ -390,6 +390,28 @@
   [videoPlayerPlugin setVolume:volume error:&error];
   XCTAssertNil(error);
   XCTAssertEqual(avPlayer.volume, 0.1f);
+
+  // Set picture-in-picture
+  NSNumber *isPictureInPictureSupported = [videoPlayerPlugin isPictureInPictureSupported:&error];
+  XCTAssertNil(error);
+  XCTAssertNotNil(isPictureInPictureSupported);
+  XCTAssertEqual(isPictureInPictureSupported.boolValue,
+                 [AVPictureInPictureController isPictureInPictureSupported]);
+  if (isPictureInPictureSupported.boolValue) {
+    FLTStartPictureInPictureMessage *startPictureInPicture =
+        [FLTStartPictureInPictureMessage makeWithTextureId:textureId];
+    XCTestExpectation *startedPiPExpectation =
+        [self expectationWithDescription:@"startedPictureInPicture"];
+    [player onListenWithArguments:nil
+                        eventSink:^(NSDictionary<NSString *, id> *event) {
+                          if ([event[@"event"] isEqualToString:@"startedPictureInPicture"]) {
+                            [startedPiPExpectation fulfill];
+                          }
+                        }];
+    [videoPlayerPlugin startPictureInPicture:startPictureInPicture error:&error];
+    XCTAssertNil(error);
+    [self waitForExpectationsWithTimeout:30.0 handler:nil];
+  }
 
   [player onCancelWithArguments:nil];
 
