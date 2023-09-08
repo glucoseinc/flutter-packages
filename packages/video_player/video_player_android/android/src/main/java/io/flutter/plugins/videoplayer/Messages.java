@@ -16,6 +16,10 @@ import io.flutter.plugin.common.StandardMessageCodec;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /** Generated class from Pigeon. */
@@ -596,6 +600,163 @@ public class Messages {
     }
   }
 
+  /** Generated class from Pigeon that represents data sent in messages. */
+  public static final class ReplaceDataSourceMessage {
+    private @NonNull Long textureId;
+
+    public @NonNull Long getTextureId() {
+      return textureId;
+    }
+
+    public void setTextureId(@NonNull Long setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"textureId\" is null.");
+      }
+      this.textureId = setterArg;
+    }
+
+    private @Nullable String asset;
+
+    public @Nullable String getAsset() {
+      return asset;
+    }
+
+    public void setAsset(@Nullable String setterArg) {
+      this.asset = setterArg;
+    }
+
+    private @Nullable String uri;
+
+    public @Nullable String getUri() {
+      return uri;
+    }
+
+    public void setUri(@Nullable String setterArg) {
+      this.uri = setterArg;
+    }
+
+    private @Nullable String packageName;
+
+    public @Nullable String getPackageName() {
+      return packageName;
+    }
+
+    public void setPackageName(@Nullable String setterArg) {
+      this.packageName = setterArg;
+    }
+
+    private @Nullable String formatHint;
+
+    public @Nullable String getFormatHint() {
+      return formatHint;
+    }
+
+    public void setFormatHint(@Nullable String setterArg) {
+      this.formatHint = setterArg;
+    }
+
+    private @NonNull Map<String, String> httpHeaders;
+
+    public @NonNull Map<String, String> getHttpHeaders() {
+      return httpHeaders;
+    }
+
+    public void setHttpHeaders(@NonNull Map<String, String> setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"httpHeaders\" is null.");
+      }
+      this.httpHeaders = setterArg;
+    }
+
+    /** Constructor is non-public to enforce null safety; use Builder. */
+    ReplaceDataSourceMessage() {}
+
+    public static final class Builder {
+
+      private @Nullable Long textureId;
+
+      public @NonNull Builder setTextureId(@NonNull Long setterArg) {
+        this.textureId = setterArg;
+        return this;
+      }
+
+      private @Nullable String asset;
+
+      public @NonNull Builder setAsset(@Nullable String setterArg) {
+        this.asset = setterArg;
+        return this;
+      }
+
+      private @Nullable String uri;
+
+      public @NonNull Builder setUri(@Nullable String setterArg) {
+        this.uri = setterArg;
+        return this;
+      }
+
+      private @Nullable String packageName;
+
+      public @NonNull Builder setPackageName(@Nullable String setterArg) {
+        this.packageName = setterArg;
+        return this;
+      }
+
+      private @Nullable String formatHint;
+
+      public @NonNull Builder setFormatHint(@Nullable String setterArg) {
+        this.formatHint = setterArg;
+        return this;
+      }
+
+      private @Nullable Map<String, String> httpHeaders;
+
+      public @NonNull Builder setHttpHeaders(@NonNull Map<String, String> setterArg) {
+        this.httpHeaders = setterArg;
+        return this;
+      }
+
+      public @NonNull ReplaceDataSourceMessage build() {
+        ReplaceDataSourceMessage pigeonReturn = new ReplaceDataSourceMessage();
+        pigeonReturn.setTextureId(textureId);
+        pigeonReturn.setAsset(asset);
+        pigeonReturn.setUri(uri);
+        pigeonReturn.setPackageName(packageName);
+        pigeonReturn.setFormatHint(formatHint);
+        pigeonReturn.setHttpHeaders(httpHeaders);
+        return pigeonReturn;
+      }
+    }
+
+    @NonNull
+    ArrayList<Object> toList() {
+      ArrayList<Object> toListResult = new ArrayList<Object>(6);
+      toListResult.add(textureId);
+      toListResult.add(asset);
+      toListResult.add(uri);
+      toListResult.add(packageName);
+      toListResult.add(formatHint);
+      toListResult.add(httpHeaders);
+      return toListResult;
+    }
+
+    static @NonNull ReplaceDataSourceMessage fromList(@NonNull ArrayList<Object> list) {
+      ReplaceDataSourceMessage pigeonResult = new ReplaceDataSourceMessage();
+      Object textureId = list.get(0);
+      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
+      Object asset = list.get(1);
+      pigeonResult.setAsset((String) asset);
+      Object uri = list.get(2);
+      pigeonResult.setUri((String) uri);
+      Object packageName = list.get(3);
+      pigeonResult.setPackageName((String) packageName);
+      Object formatHint = list.get(4);
+      pigeonResult.setFormatHint((String) formatHint);
+      Object httpHeaders = list.get(5);
+      pigeonResult.setHttpHeaders((Map<String, String>) httpHeaders);
+      return pigeonResult;
+    }
+  }
+
   private static class AndroidVideoPlayerApiCodec extends StandardMessageCodec {
     public static final AndroidVideoPlayerApiCodec INSTANCE = new AndroidVideoPlayerApiCodec();
 
@@ -615,8 +776,10 @@ public class Messages {
         case (byte) 132:
           return PositionMessage.fromList((ArrayList<Object>) readValue(buffer));
         case (byte) 133:
-          return TextureMessage.fromList((ArrayList<Object>) readValue(buffer));
+          return ReplaceDataSourceMessage.fromList((ArrayList<Object>) readValue(buffer));
         case (byte) 134:
+          return TextureMessage.fromList((ArrayList<Object>) readValue(buffer));
+        case (byte) 135:
           return VolumeMessage.fromList((ArrayList<Object>) readValue(buffer));
         default:
           return super.readValueOfType(type, buffer);
@@ -640,11 +803,14 @@ public class Messages {
       } else if (value instanceof PositionMessage) {
         stream.write(132);
         writeValue(stream, ((PositionMessage) value).toList());
-      } else if (value instanceof TextureMessage) {
+      } else if (value instanceof ReplaceDataSourceMessage) {
         stream.write(133);
+        writeValue(stream, ((ReplaceDataSourceMessage) value).toList());
+      } else if (value instanceof TextureMessage) {
+        stream.write(134);
         writeValue(stream, ((TextureMessage) value).toList());
       } else if (value instanceof VolumeMessage) {
-        stream.write(134);
+        stream.write(135);
         writeValue(stream, ((VolumeMessage) value).toList());
       } else {
         super.writeValue(stream, value);
@@ -678,6 +844,8 @@ public class Messages {
     void pause(@NonNull TextureMessage msg);
 
     void setMixWithOthers(@NonNull MixWithOthersMessage msg);
+
+    void replaceDataSource(@NonNull ReplaceDataSourceMessage msg);
 
     /** The codec used by AndroidVideoPlayerApi. */
     static @NonNull MessageCodec<Object> getCodec() {
@@ -933,6 +1101,29 @@ public class Messages {
                 MixWithOthersMessage msgArg = (MixWithOthersMessage) args.get(0);
                 try {
                   api.setMixWithOthers(msgArg);
+                  wrapped.add(0, null);
+                } catch (Throwable exception) {
+                  ArrayList<Object> wrappedError = wrapError(exception);
+                  wrapped = wrappedError;
+                }
+                reply.reply(wrapped);
+              });
+        } else {
+          channel.setMessageHandler(null);
+        }
+      }
+      {
+        BasicMessageChannel<Object> channel =
+            new BasicMessageChannel<>(
+                binaryMessenger, "dev.flutter.pigeon.AndroidVideoPlayerApi.replaceDataSource", getCodec());
+        if (api != null) {
+          channel.setMessageHandler(
+              (message, reply) -> {
+                ArrayList<Object> wrapped = new ArrayList<Object>();
+                ArrayList<Object> args = (ArrayList<Object>) message;
+                ReplaceDataSourceMessage msgArg = (ReplaceDataSourceMessage) args.get(0);
+                try {
+                  api.replaceDataSource(msgArg);
                   wrapped.add(0, null);
                 } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);

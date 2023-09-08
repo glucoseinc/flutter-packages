@@ -292,6 +292,12 @@ final class VideoPlayer {
     return exoPlayer.getCurrentPosition();
   }
 
+  void setHttpHeaders(Map<String, String> headers) {
+    for (Map.Entry<String, String> entry : headers.entrySet()) {
+      httpDataSourceFactory.getDefaultRequestProperties().set(entry.getKey(), entry.getValue());
+    }
+  }
+
   @SuppressWarnings("SuspiciousNameCombination")
   @VisibleForTesting
   void sendInitialized() {
