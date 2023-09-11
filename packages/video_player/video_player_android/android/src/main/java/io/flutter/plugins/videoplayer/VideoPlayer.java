@@ -31,6 +31,7 @@ import com.google.android.exoplayer2.source.smoothstreaming.SsMediaSource;
 import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
+import com.google.android.exoplayer2.upstream.ResolvingDataSource;
 import com.google.android.exoplayer2.util.Util;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
@@ -64,6 +65,8 @@ final class VideoPlayer {
 
   private DefaultHttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory();
 
+  private Map<String, String> httpHeaders = new HashMap<>();
+
   VideoPlayer(
       Context context,
       EventChannel eventChannel,
@@ -75,6 +78,7 @@ final class VideoPlayer {
     this.eventChannel = eventChannel;
     this.textureEntry = textureEntry;
     this.options = options;
+    this.httpHeaders = httpHeaders;
 
     ExoPlayer exoPlayer = new ExoPlayer.Builder(context).build();
     Uri uri = Uri.parse(dataSource);
@@ -83,7 +87,13 @@ final class VideoPlayer {
     DataSource.Factory dataSourceFactory =
         new DefaultDataSource.Factory(context, httpDataSourceFactory);
 
-    MediaSource mediaSource = buildMediaSource(uri, dataSourceFactory, formatHint);
+    ResolvingDataSource.Factory resolvingDataSourceFactory = 
+        new ResolvingDataSource.Factory(
+          dataSourceFactory,
+          dataSpec -> dataSpec.withRequestHeaders(httpHeaders)
+        );
+
+    MediaSource mediaSource = buildMediaSource(uri, resolvingDataSourceFactory, formatHint);
 
     exoPlayer.setMediaSource(mediaSource);
     exoPlayer.prepare();
@@ -117,10 +127,6 @@ final class VideoPlayer {
             : "ExoPlayer";
 
     httpDataSourceFactory.setUserAgent(userAgent).setAllowCrossProtocolRedirects(true);
-
-    if (httpHeadersNotEmpty) {
-      httpDataSourceFactory.setDefaultRequestProperties(httpHeaders);
-    }
   }
 
   private MediaSource buildMediaSource(
@@ -293,9 +299,7 @@ final class VideoPlayer {
   }
 
   void setHttpHeaders(Map<String, String> headers) {
-    for (Map.Entry<String, String> entry : headers.entrySet()) {
-      httpDataSourceFactory.getDefaultRequestProperties().set(entry.getKey(), entry.getValue());
-    }
+    httpHeaders = headers;
   }
 
   @SuppressWarnings("SuspiciousNameCombination")
