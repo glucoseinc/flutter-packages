@@ -32,11 +32,14 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
     } else if (value is PositionMessage) {
       buffer.putUint8(132);
       writeValue(buffer, value.encode());
-    } else if (value is TextureMessage) {
+    } else if (value is ReplaceDataSourceMessage) {
       buffer.putUint8(133);
       writeValue(buffer, value.encode());
-    } else if (value is VolumeMessage) {
+    } else if (value is TextureMessage) {
       buffer.putUint8(134);
+      writeValue(buffer, value.encode());
+    } else if (value is VolumeMessage) {
+      buffer.putUint8(135);
       writeValue(buffer, value.encode());
     } else {
       super.writeValue(buffer, value);
@@ -57,8 +60,10 @@ class _TestHostVideoPlayerApiCodec extends StandardMessageCodec {
       case 132:
         return PositionMessage.decode(readValue(buffer)!);
       case 133:
-        return TextureMessage.decode(readValue(buffer)!);
+        return ReplaceDataSourceMessage.decode(readValue(buffer)!);
       case 134:
+        return TextureMessage.decode(readValue(buffer)!);
+      case 135:
         return VolumeMessage.decode(readValue(buffer)!);
       default:
         return super.readValueOfType(type, buffer);
@@ -92,6 +97,8 @@ abstract class TestHostVideoPlayerApi {
   void pause(TextureMessage msg);
 
   void setMixWithOthers(MixWithOthersMessage msg);
+
+  void replaceDataSource(ReplaceDataSourceMessage msg);
 
   static void setup(TestHostVideoPlayerApi? api,
       {BinaryMessenger? binaryMessenger}) {
@@ -330,6 +337,29 @@ abstract class TestHostVideoPlayerApi {
           assert(arg_msg != null,
               'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.setMixWithOthers was null, expected non-null MixWithOthersMessage.');
           api.setMixWithOthers(arg_msg!);
+          return <Object?>[];
+        });
+      }
+    }
+    {
+      final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
+          'dev.flutter.pigeon.AndroidVideoPlayerApi.replaceDataSource', codec,
+          binaryMessenger: binaryMessenger);
+      if (api == null) {
+        _testBinaryMessengerBinding!.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel, null);
+      } else {
+        _testBinaryMessengerBinding!.defaultBinaryMessenger
+            .setMockDecodedMessageHandler<Object?>(channel,
+                (Object? message) async {
+          assert(message != null,
+              'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.replaceDataSource was null.');
+          final List<Object?> args = (message as List<Object?>?)!;
+          final ReplaceDataSourceMessage? arg_msg =
+              (args[0] as ReplaceDataSourceMessage?);
+          assert(arg_msg != null,
+              'Argument for dev.flutter.pigeon.AndroidVideoPlayerApi.replaceDataSource was null, expected non-null ReplaceDataSourceMessage.');
+          api.replaceDataSource(arg_msg!);
           return <Object?>[];
         });
       }

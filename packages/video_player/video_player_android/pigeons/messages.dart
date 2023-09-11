@@ -56,6 +56,16 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class ReplaceDataSourceMessage {
+  ReplaceDataSourceMessage(this.textureId, this.asset, this.uri, this.packageName, this.formatHint, this.httpHeaders);
+  int textureId;
+  String? asset;
+  String? uri;
+  String? packageName;
+  String? formatHint;
+  Map<String?, String?> httpHeaders;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -69,4 +79,5 @@ abstract class AndroidVideoPlayerApi {
   void seekTo(PositionMessage msg);
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
+  void replaceDataSource(ReplaceDataSourceMessage msg);
 }

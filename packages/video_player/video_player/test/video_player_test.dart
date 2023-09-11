@@ -102,6 +102,13 @@ class FakeController extends ValueNotifier<VideoPlayerValue>
 
   @override
   Future<void> stopPictureInPicture() async {}
+
+  @override
+  Future<void> replaceDataSource({
+    String? dataSource,
+    Map<String, String>? httpHeaders,
+    VideoFormat? formatHint,
+  }) async {}
 }
 
 Future<ClosedCaptionFile> _loadClosedCaption() async =>

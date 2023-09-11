@@ -189,4 +189,14 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
       Duration(milliseconds: pair[1] as int),
     );
   }
+
+  @override
+  Future<void> replaceDataSource(int textureId, DataSource dataSource) {
+    return _api.replaceDataSource(ReplaceDataSourceMessage(
+      textureId: textureId,
+      uri: dataSource.uri,
+      httpHeaders: dataSource.httpHeaders,
+      // TODO: other fields
+    ));
+  }
 }
