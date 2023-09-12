@@ -64,7 +64,10 @@ final class VideoPlayer {
   private final VideoPlayerOptions options;
 
   private DefaultHttpDataSource.Factory httpDataSourceFactory = new DefaultHttpDataSource.Factory();
+  private ResolvingDataSource.Factory resolvingDataSourceFactory;
 
+  private String dataSource;
+  private String formatHint;
   private Map<String, String> httpHeaders = new HashMap<>();
 
   VideoPlayer(
@@ -75,6 +78,8 @@ final class VideoPlayer {
       String formatHint,
       @NonNull Map<String, String> httpHeaders,
       VideoPlayerOptions options) {
+    this.dataSource = dataSource;
+    this.formatHint = formatHint;
     this.eventChannel = eventChannel;
     this.textureEntry = textureEntry;
     this.options = options;
@@ -87,7 +92,7 @@ final class VideoPlayer {
     DataSource.Factory dataSourceFactory =
         new DefaultDataSource.Factory(context, httpDataSourceFactory);
 
-    ResolvingDataSource.Factory resolvingDataSourceFactory = 
+    resolvingDataSourceFactory = 
         new ResolvingDataSource.Factory(
           dataSourceFactory,
           dataSpec -> dataSpec.withRequestHeaders(httpHeaders)
@@ -298,8 +303,17 @@ final class VideoPlayer {
     return exoPlayer.getCurrentPosition();
   }
 
-  void setHttpHeaders(Map<String, String> headers) {
+  void replaceDataSource(String newDataSource, Map<String, String> headers) {
     httpHeaders = headers;
+
+    if (newDataSource.equals(dataSource)) return;
+
+    dataSource = newDataSource;
+    MediaSource mediaSource = buildMediaSource(Uri.parse(newDataSource), resolvingDataSourceFactory, formatHint);
+
+    exoPlayer.stop();
+    exoPlayer.setMediaSource(mediaSource);
+    exoPlayer.prepare();
   }
 
   @SuppressWarnings("SuspiciousNameCombination")

@@ -219,7 +219,8 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
 
     if (uri != null) {
       Map<String, String> httpHeaders = arg.getHttpHeaders();
-      player.setHttpHeaders(httpHeaders);
+
+      player.replaceDataSource(uri, httpHeaders);
     } else {
       // error
     }
