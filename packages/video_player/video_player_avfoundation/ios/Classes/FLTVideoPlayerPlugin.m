@@ -10,6 +10,7 @@
 #import <GLKit/GLKit.h>
 #import "AVAssetTrackUtils.h"
 #import "messages.g.h"
+#import <MediaPlayer/MediaPlayer.h>
 
 #if !__has_feature(objc_arc)
 #error Code Requires ARC.
@@ -649,6 +650,8 @@ NS_INLINE UIViewController *rootViewController(void) {
 @end
 
 @implementation FLTVideoPlayerPlugin
+bool _remoteCommandsInitialized;
+
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FLTVideoPlayerPlugin *instance = [[FLTVideoPlayerPlugin alloc] initWithRegistrar:registrar];
   [registrar publish:instance];
@@ -747,6 +750,9 @@ NS_INLINE UIViewController *rootViewController(void) {
   // TODO(cyanglaz): Remove this dispatch block when
   // https://github.com/flutter/flutter/commit/8159a9906095efc9af8b223f5e232cb63542ad0b is in
   // stable And update the min flutter version of the plugin to the stable version.
+
+  [self teardownControlCenter];
+
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
                    if (!player.disposed) {
@@ -772,7 +778,83 @@ NS_INLINE UIViewController *rootViewController(void) {
 
 - (void)play:(FLTTextureMessage *)input error:(FlutterError **)error {
   FLTVideoPlayer *player = self.playersByTextureId[input.textureId];
+  [self setupControlCenter: player];
   [player play];
+}
+
+- (void)setupControlCenter: (FLTVideoPlayer *)player {
+  // コントロールセンターから操作できるようにするための設定
+  // TODO: API呼び出しが必要なときだけ呼ぶようにする
+  [[AVAudioSession sharedInstance] setActive: YES error: nil];
+  [[UIApplication sharedApplication] beginReceivingRemoteControlEvents];
+
+  if (_remoteCommandsInitialized) {
+    return;
+  }
+
+  // コントロールセンターからの操作を受け付けるための設定
+  MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+  [commandCenter.togglePlayPauseCommand setEnabled:YES];
+  [commandCenter.playCommand setEnabled:YES];
+  [commandCenter.pauseCommand setEnabled:YES];
+  // トラック変更は無効（トラックとかないので）
+  [commandCenter.nextTrackCommand setEnabled:NO];
+  [commandCenter.previousTrackCommand setEnabled:NO];
+  // コントロールセンターからのシーク操作は受け付けない（ややこしいので）
+  [commandCenter.changePlaybackPositionCommand setEnabled:NO];
+
+  [self removeCommandCenterTargetHandlers];
+
+  // 再生・一時停止が切り替わった時のイベントハンドラ
+  [commandCenter.togglePlayPauseCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+    if (player.isPlaying){
+      [player pause];
+    } else {
+      [player play];
+    }
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+  // 再生ボタンが押された時のイベントハンドラ
+  [commandCenter.playCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+    [player play];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+  // 一時停止ボタンが押された時のイベントハンドラ
+  [commandCenter.pauseCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
+    [player pause];
+    return MPRemoteCommandHandlerStatusSuccess;
+  }];
+
+  // [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = @{
+  //   MPMediaItemPropertyTitle: @"番組名",
+  //   MPMediaItemPropertyArtist: @"チャンネル名",
+  //   MPMediaItemPropertyPlaybackDuration: @(player.duration),
+  //   MPNowPlayingInfoPropertyElapsedPlaybackTime: @(player.position),
+  //   MPNowPlayingInfoPropertyPlaybackRate: @(player.isPlaying ? 1.0 : 0.0),
+  // };
+
+  _remoteCommandsInitialized = true;
+}
+
+- (void)teardownControlCenter {
+  // TODO: コントロールセンターに渡してあった番組情報を消す
+
+  // 登録してあったイベントを消す
+  [self removeCommandCenterTargetHandlers];
+
+  // コントロールセンターとの接続を切る
+  [[AVAudioSession sharedInstance] setActive: NO error: nil];
+  [[UIApplication sharedApplication] endReceivingRemoteControlEvents];
+
+  _remoteCommandsInitialized = false;
+}
+
+- (void)removeCommandCenterTargetHandlers{
+  MPRemoteCommandCenter *commandCenter = [MPRemoteCommandCenter sharedCommandCenter];
+  [commandCenter.togglePlayPauseCommand removeTarget:nil];
+  [commandCenter.playCommand removeTarget:nil];
+  [commandCenter.pauseCommand removeTarget:nil];
+  [commandCenter.changePlaybackPositionCommand removeTarget:nil];
 }
 
 - (FLTPositionMessage *)position:(FLTTextureMessage *)input error:(FlutterError **)error {
