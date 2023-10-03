@@ -269,6 +269,8 @@ NS_INLINE UIViewController *rootViewController(void) {
   _playerLayer.opacity = 0.001;
   [rootViewController().view.layer addSublayer:_playerLayer];
 
+  _player.allowsExternalPlayback = NO;
+
   [self setupPipController];
 
   [self createVideoOutputAndDisplayLink:frameUpdater];
