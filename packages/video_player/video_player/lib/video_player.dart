@@ -829,6 +829,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   }
 
   void _updatePosition(Duration position) {
+    if (_isDisposed) return;
+
     value = value.copyWith(
       position: position,
       caption: _getCaptionAt(position),
