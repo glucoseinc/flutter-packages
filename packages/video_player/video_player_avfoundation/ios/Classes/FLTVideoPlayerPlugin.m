@@ -373,7 +373,7 @@ NS_INLINE UIViewController *rootViewController(void) {
     (AVPictureInPictureController *)pictureInPictureController {
   self.isPictureInPictureStarted = YES;
   if (_eventSink != nil) {
-    _eventSink(@{@"event" : @"startingPictureInPicture"});
+    _eventSink(@{@"event" : @"startedPictureInPicture"});
   }
   [self updatePlayingState];
 }
