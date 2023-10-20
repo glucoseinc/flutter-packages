@@ -48,6 +48,11 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     throw UnimplementedError('dispose() has not been implemented.');
   }
 
+  /// ser up Mux.
+  Future<void> setupMux(int textureId, MuxConfig config) {
+    throw UnimplementedError('setupMux() has not been implemented.');
+  }
+
   /// Creates an instance of a video player and returns its textureId.
   Future<int?> create(DataSource dataSource) {
     throw UnimplementedError('create() has not been implemented.');
@@ -111,8 +116,7 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     required int textureId,
     required bool enableStartPictureInPictureAutomaticallyFromInline,
   }) {
-    throw UnimplementedError(
-        'setAutomaticallyStartsPictureInPicture() has not been implemented.');
+    throw UnimplementedError('setAutomaticallyStartsPictureInPicture() has not been implemented.');
   }
 
   /// Set the location of the video player view. So picture-in-picture can use it for animating.
@@ -122,20 +126,17 @@ abstract class VideoPlayerPlatform extends PlatformInterface {
     required int textureId,
     required Rect rect,
   }) {
-    throw UnimplementedError(
-        'setPictureInPictureOverlayRect() has not been implemented.');
+    throw UnimplementedError('setPictureInPictureOverlayRect() has not been implemented.');
   }
 
   /// Start picture-in-picture mode.
   Future<void> startPictureInPicture(int textureId) {
-    throw UnimplementedError(
-        'startPictureInPicture() has not been implemented.');
+    throw UnimplementedError('startPictureInPicture() has not been implemented.');
   }
 
   /// Stop picture-in-picture mode.
   Future<void> stopPictureInPicture(int textureId) {
-    throw UnimplementedError(
-        'stopPictureInPicture() has not been implemented.');
+    throw UnimplementedError('stopPictureInPicture() has not been implemented.');
   }
 
   /// Replace video data source
@@ -393,16 +394,12 @@ class DurationRange {
   }
 
   @override
-  String toString() =>
-      '${objectRuntimeType(this, 'DurationRange')}(start: $start, end: $end)';
+  String toString() => '${objectRuntimeType(this, 'DurationRange')}(start: $start, end: $end)';
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is DurationRange &&
-          runtimeType == other.runtimeType &&
-          start == other.start &&
-          end == other.end;
+      other is DurationRange && runtimeType == other.runtimeType && start == other.start && end == other.end;
 
   @override
   int get hashCode => Object.hash(start, end);
@@ -431,4 +428,63 @@ class VideoPlayerOptions {
   /// Note: This option will be silently ignored in the web platform (there is
   /// currently no way to implement this feature in this platform).
   final bool mixWithOthers;
+}
+
+/// Configuration parameters to send to Mux.
+class MuxConfig {
+  const MuxConfig({
+    required this.envKey,
+    required this.playerName,
+    this.viewerUserId,
+    this.pageType,
+    this.experimentName,
+    this.subPropertyId,
+    this.playerVersion,
+    this.playerInitTime,
+    this.videoId,
+    this.videoTitle,
+    this.videoSeries,
+    this.videoVariantName,
+    this.videoVariantId,
+    this.videoLanguageCode,
+    this.videoContentType,
+    this.videoDuration,
+    this.videoStreamType,
+    this.videoProducer,
+    this.videoEncodingVariant,
+    this.videoCdn,
+  });
+
+  final String envKey;
+  final String playerName;
+  final String? viewerUserId;
+  final MuxPageType? pageType;
+  final String? experimentName;
+  final String? subPropertyId;
+  final String? playerVersion;
+  final DateTime? playerInitTime;
+  final String? videoId;
+  final String? videoTitle;
+  final String? videoSeries;
+  final String? videoVariantName;
+  final String? videoVariantId;
+  final String? videoLanguageCode;
+  final String? videoContentType;
+  final Duration? videoDuration;
+  final MuxVideoStreamType? videoStreamType;
+  final String? videoProducer;
+  final String? videoEncodingVariant;
+  final String? videoCdn;
+}
+
+enum MuxVideoStreamType {
+  // livestream,
+  // onDemand,
+  live,
+  archive
+}
+
+enum MuxPageType {
+  watchpage,
+  iframe,
 }

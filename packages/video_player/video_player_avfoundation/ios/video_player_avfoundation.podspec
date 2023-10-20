@@ -16,6 +16,7 @@ Downloaded by pub (not CocoaPods).
   s.documentation_url = 'https://pub.dev/packages/video_player'
   s.source_files = 'Classes/**/*'
   s.public_header_files = 'Classes/**/*.h'
+  s.dependency 'Mux-Stats-AVPlayer', '~>3.0'
   s.dependency 'Flutter'
 
   s.platform = :ios, '11.0'

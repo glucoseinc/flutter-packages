@@ -11,6 +11,7 @@
 #import "AVAssetTrackUtils.h"
 #import "messages.g.h"
 #import <MediaPlayer/MediaPlayer.h>
+@import MUXSDKStats;
 
 #if !__has_feature(objc_arc)
 #error Code Requires ARC.
@@ -736,6 +737,45 @@ bool _remoteCommandsInitialized;
     *error = [FlutterError errorWithCode:@"video_player" message:@"not implemented" details:nil];
     return nil;
   }
+}
+
+- (void)setupMux:(FLTMuxConfigMessage*)input error:(FlutterError**)error {
+  FLTVideoPlayer* player = self.playersByTextureId[input.textureId];
+
+  AVPlayerViewController* playerViewController = [AVPlayerViewController new];
+  playerViewController.player = player.player;
+
+  // Environment and player data that persists until the player is destroyed
+  MUXSDKCustomerPlayerData* playerData = [[MUXSDKCustomerPlayerData alloc] initWithEnvironmentKey: input.envKey];
+  // input.env];
+  playerData.viewerUserId = input.viewerUserId; // シラスユーザーID
+  playerData.playerName = input.playerName; // ex: 'My Main Player'
+  playerData.playerVersion = input.playerVersion; // ex: '1.0.0'
+  playerData.playerInitTime = input.playerInitTime; // 視聴開始時刻
+  // playerData.experimentName = input.experimentName;
+  // playerData.pageType = input.pageType;
+  // playerData.subPropertyId = input.subPropertyId;
+
+  // Video metadata (cleared with videoChangeForPlayer:withVideoData:)
+  MUXSDKCustomerVideoData* videoData = [MUXSDKCustomerVideoData new];
+  videoData.videoId = input.videoId; // 番組ID
+  videoData.videoTitle = input.videoTitle; // 番組タイトル
+  videoData.videoSeries = input.videoSeries; // チャンネル名
+  videoData.videoDuration = input.videoDuration; // 動画の総再生時間
+  videoData.videoStreamType = input.videoStreamType; // 生放送 or アーカイブ
+  // videoData.videoVariantName = input.videoVariantName;
+  // videoData.videoVariantId = input.videoVariantId;
+  // videoData.videoLanguageCode = input.videoLanguageCode;
+  // videoData.videoContentType = input.videoContentType;
+  // videoData.videoProducer = input.videoProducer;
+  // videoData.videoEncodingVariant = input.videoEncodingVariant;
+  // videoData.videoCdn = input.videoCdn;
+
+  [MUXSDKStats monitorAVPlayerViewController:playerViewController
+    withPlayerName:input.playerName
+    playerData:playerData
+    videoData:videoData
+  ];
 }
 
 - (void)dispose:(FLTTextureMessage *)input error:(FlutterError **)error {

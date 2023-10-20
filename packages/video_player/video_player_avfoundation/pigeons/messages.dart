@@ -64,6 +64,30 @@ class MixWithOthersMessage {
   bool mixWithOthers;
 }
 
+class MuxConfigMessage {
+  int? textureId;
+  String? envKey;
+  String? playerName;
+  String? viewerUserId;
+  String? pageType;
+  String? experimentName;
+  String? subPropertyId;
+  String? playerVersion;
+  int? playerInitTime;
+  String? videoId;
+  String? videoTitle;
+  String? videoSeries;
+  String? videoVariantName;
+  String? videoVariantId;
+  String? videoLanguageCode;
+  String? videoContentType;
+  int? videoDuration;
+  String? videoStreamType;
+  String? videoProducer;
+  String? videoEncodingVariant;
+  String? videoCdn;
+}
+
 class AutomaticallyStartsPictureInPictureMessage {
   AutomaticallyStartsPictureInPictureMessage(
     this.textureId,
@@ -157,16 +181,17 @@ abstract class AVFoundationVideoPlayerApi {
   @ObjCSelector('setMixWithOthers:')
   void setMixWithOthers(MixWithOthersMessage msg);
 
+  @ObjCSelector('setupMux:')
+  void setupMux(MuxConfigMessage msg);
+
   @ObjCSelector('isPictureInPictureSupported')
   bool isPictureInPictureSupported();
 
   @ObjCSelector('setPictureInPictureOverlayRect:')
-  void setPictureInPictureOverlayRect(
-      SetPictureInPictureOverlayRectMessage msg);
+  void setPictureInPictureOverlayRect(SetPictureInPictureOverlayRectMessage msg);
 
   @ObjCSelector('setAutomaticallyStartsPictureInPicture:')
-  void setAutomaticallyStartsPictureInPicture(
-      AutomaticallyStartsPictureInPictureMessage msg);
+  void setAutomaticallyStartsPictureInPicture(AutomaticallyStartsPictureInPictureMessage msg);
 
   @ObjCSelector('startPictureInPicture:')
   void startPictureInPicture(StartPictureInPictureMessage msg);
