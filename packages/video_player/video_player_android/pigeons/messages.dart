@@ -66,6 +66,30 @@ class ReplaceDataSourceMessage {
   Map<String?, String?> httpHeaders;
 }
 
+class MuxConfigMessage {
+  int? textureId;
+  String? envKey;
+  String? playerName;
+  String? viewerUserId;
+  String? pageType;
+  String? experimentName;
+  String? subPropertyId;
+  String? playerVersion;
+  int? playerInitTime;
+  String? videoId;
+  String? videoTitle;
+  String? videoSeries;
+  String? videoVariantName;
+  String? videoVariantId;
+  String? videoLanguageCode;
+  String? videoContentType;
+  int? videoDuration;
+  String? videoStreamType;
+  String? videoProducer;
+  String? videoEncodingVariant;
+  String? videoCdn;
+}
+
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
 abstract class AndroidVideoPlayerApi {
   void initialize();
@@ -80,4 +104,5 @@ abstract class AndroidVideoPlayerApi {
   void pause(TextureMessage msg);
   void setMixWithOthers(MixWithOthersMessage msg);
   void replaceDataSource(ReplaceDataSourceMessage msg);
+  void setupMux(MuxConfigMessage msg);
 }

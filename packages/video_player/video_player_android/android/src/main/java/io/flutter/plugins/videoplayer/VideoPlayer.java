@@ -47,7 +47,7 @@ final class VideoPlayer {
   private static final String FORMAT_HLS = "hls";
   private static final String FORMAT_OTHER = "other";
 
-  private ExoPlayer exoPlayer;
+  public ExoPlayer exoPlayer;
 
   private Surface surface;
 
