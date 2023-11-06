@@ -340,6 +340,14 @@ enum VideoEventType {
   /// phone calls, or other app media such as music players.
   isPlayingStateUpdate,
 
+  /// The video is set to play
+  /// for iOS event
+  play,
+
+  /// The video is set to pause
+  /// for iOS event
+  pause,
+
   /// An unknown event has been received.
   unknown,
 }

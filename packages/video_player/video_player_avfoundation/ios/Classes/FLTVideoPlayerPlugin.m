@@ -67,6 +67,7 @@
 @property(nonatomic) BOOL isLooping;
 @property(nonatomic, readonly) BOOL isInitialized;
 @property(nonatomic) BOOL isPictureInPictureStarted;
+@property(nonatomic) AVPlayerTimeControlStatus lastAVPlayerTimeControlStatus;
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
@@ -379,6 +380,11 @@ NS_INLINE UIViewController *rootViewController(void) {
   [self updatePlayingState];
 }
 
+- (void)pictureInPictureControllerWillStartPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+    _lastAVPlayerTimeControlStatus = _player.timeControlStatus;
+}
+
 - (void)observeValueForKeyPath:(NSString *)path
                       ofObject:(id)object
                         change:(NSDictionary *)change
@@ -441,9 +447,21 @@ NS_INLINE UIViewController *rootViewController(void) {
     // Important: Make sure to cast the object to AVPlayer when observing the rate property,
     // as it is not available in AVPlayerItem.
     AVPlayer *player = (AVPlayer *)object;
-    if (_eventSink != nil) {
-      _eventSink(
-          @{@"event" : @"isPlayingStateUpdate", @"isPlaying" : player.rate > 0 ? @YES : @NO});
+    if (_pictureInPictureController.pictureInPictureActive == true) {
+      AVPlayerTimeControlStatus newStatus = player.timeControlStatus;
+      if (_lastAVPlayerTimeControlStatus != [NSNull null] && _lastAVPlayerTimeControlStatus == newStatus){
+        return;
+      }
+      _lastAVPlayerTimeControlStatus = newStatus;
+
+      if (_eventSink) {
+        _eventSink(@{@"event" : newStatus == AVPlayerTimeControlStatusPaused ? @"pause" : @"play"});
+      }
+    } else {
+      if (_eventSink != nil) {
+        _eventSink(
+            @{@"event" : @"isPlayingStateUpdate", @"isPlaying" : player.rate > 0 ? @YES : @NO});
+      }
     }
   }
 }
@@ -850,20 +868,28 @@ bool _remoteCommandsInitialized;
   // 再生・一時停止が切り替わった時のイベントハンドラ
   [commandCenter.togglePlayPauseCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
     if (player.isPlaying){
-      [player pause];
+      if (player.eventSink) {
+        player.eventSink(@{@"event" : @"pause"});
+      }
     } else {
-      [player play];
+      if (player.eventSink) {
+        player.eventSink(@{@"event" : @"play"});
+      }
     }
     return MPRemoteCommandHandlerStatusSuccess;
   }];
   // 再生ボタンが押された時のイベントハンドラ
   [commandCenter.playCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-    [player play];
+    if (player.eventSink) {
+      player.eventSink(@{@"event" : @"play"});
+    }
     return MPRemoteCommandHandlerStatusSuccess;
   }];
   // 一時停止ボタンが押された時のイベントハンドラ
   [commandCenter.pauseCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-    [player pause];
+    if (player.eventSink) {
+      player.eventSink(@{@"event" : @"pause"});
+    }
     return MPRemoteCommandHandlerStatusSuccess;
   }];
 
