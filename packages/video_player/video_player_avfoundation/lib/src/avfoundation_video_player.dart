@@ -89,6 +89,10 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       uri: uri,
       httpHeaders: httpHeaders,
       formatHint: formatHint,
+      title: dataSource.mediaInfo?.title ?? '',
+      artist: dataSource.mediaInfo?.artist ?? '',
+      imageUrl: dataSource.mediaInfo?.imageUrl,
+      isLiveStream: dataSource.isLiveStream,
     );
 
     final TextureMessage response = await _api.create(message);

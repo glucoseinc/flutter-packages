@@ -170,6 +170,8 @@ class DataSource {
     this.asset,
     this.package,
     this.httpHeaders = const <String, String>{},
+    this.mediaInfo,
+    this.isLiveStream = false,
   });
 
   /// The way in which the video was originally loaded.
@@ -199,6 +201,11 @@ class DataSource {
   /// The package that the asset was loaded from. Only set for
   /// [DataSourceType.asset] videos.
   final String? package;
+
+  /// iOSではコントロールセンター、AndroidではNotificationに表示されるメディア情報
+  final MediaInfo? mediaInfo;
+
+  final bool isLiveStream;
 }
 
 /// The way in which the video was originally loaded.
@@ -495,4 +502,17 @@ enum MuxVideoStreamType {
 enum MuxPageType {
   watchpage,
   iframe,
+}
+
+@immutable
+class MediaInfo {
+  const MediaInfo({
+    required this.title,
+    required this.artist,
+    this.imageUrl,
+  });
+
+  final String title;
+  final String artist;
+  final String? imageUrl;
 }

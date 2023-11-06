@@ -248,13 +248,21 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     uri:(nullable NSString *)uri
     packageName:(nullable NSString *)packageName
     formatHint:(nullable NSString *)formatHint
-    httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders {
+    httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders
+    title:(NSString *)title
+    artist:(NSString *)artist
+    imageUrl:(nullable NSString *)imageUrl
+    isLiveStream:(NSNumber *)isLiveStream {
   FLTCreateMessage* pigeonResult = [[FLTCreateMessage alloc] init];
   pigeonResult.asset = asset;
   pigeonResult.uri = uri;
   pigeonResult.packageName = packageName;
   pigeonResult.formatHint = formatHint;
   pigeonResult.httpHeaders = httpHeaders;
+  pigeonResult.title = title;
+  pigeonResult.artist = artist;
+  pigeonResult.imageUrl = imageUrl;
+  pigeonResult.isLiveStream = isLiveStream;
   return pigeonResult;
 }
 + (FLTCreateMessage *)fromList:(NSArray *)list {
@@ -265,6 +273,13 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
   pigeonResult.formatHint = GetNullableObjectAtIndex(list, 3);
   pigeonResult.httpHeaders = GetNullableObjectAtIndex(list, 4);
   NSAssert(pigeonResult.httpHeaders != nil, @"");
+  pigeonResult.title = GetNullableObjectAtIndex(list, 5);
+  NSAssert(pigeonResult.title != nil, @"");
+  pigeonResult.artist = GetNullableObjectAtIndex(list, 6);
+  NSAssert(pigeonResult.artist != nil, @"");
+  pigeonResult.imageUrl = GetNullableObjectAtIndex(list, 7);
+  pigeonResult.isLiveStream = GetNullableObjectAtIndex(list, 8);
+  NSAssert(pigeonResult.isLiveStream != nil, @"");
   return pigeonResult;
 }
 + (nullable FLTCreateMessage *)nullableFromList:(NSArray *)list {
@@ -277,6 +292,10 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     (self.packageName ?: [NSNull null]),
     (self.formatHint ?: [NSNull null]),
     (self.httpHeaders ?: [NSNull null]),
+    (self.title ?: [NSNull null]),
+    (self.artist ?: [NSNull null]),
+    (self.imageUrl ?: [NSNull null]),
+    (self.isLiveStream ?: [NSNull null]),
   ];
 }
 @end

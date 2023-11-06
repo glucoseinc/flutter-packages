@@ -78,12 +78,20 @@ NS_ASSUME_NONNULL_BEGIN
     uri:(nullable NSString *)uri
     packageName:(nullable NSString *)packageName
     formatHint:(nullable NSString *)formatHint
-    httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders;
+    httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders
+    title:(NSString *)title
+    artist:(NSString *)artist
+    imageUrl:(nullable NSString *)imageUrl
+    isLiveStream:(NSNumber *)isLiveStream;
 @property(nonatomic, copy, nullable) NSString * asset;
 @property(nonatomic, copy, nullable) NSString * uri;
 @property(nonatomic, copy, nullable) NSString * packageName;
 @property(nonatomic, copy, nullable) NSString * formatHint;
 @property(nonatomic, strong) NSDictionary<NSString *, NSString *> * httpHeaders;
+@property(nonatomic, copy) NSString * title;
+@property(nonatomic, copy) NSString * artist;
+@property(nonatomic, copy, nullable) NSString * imageUrl;
+@property(nonatomic, strong) NSNumber * isLiveStream;
 @end
 
 @interface FLTMixWithOthersMessage : NSObject
