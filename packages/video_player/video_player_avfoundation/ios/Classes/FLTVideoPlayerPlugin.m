@@ -66,6 +66,7 @@
 @property(nonatomic, readonly) BOOL isPlaying;
 @property(nonatomic) BOOL isLooping;
 @property(nonatomic) BOOL isLiveStream;
+@property(nonatomic) float playbackRate;
 @property(nonatomic, readonly) BOOL isInitialized;
 @property(nonatomic) BOOL isPictureInPictureStarted;
 @property(nonatomic) AVPlayerTimeControlStatus lastAVPlayerTimeControlStatus;
@@ -264,6 +265,8 @@ NS_INLINE UIViewController *rootViewController(void) {
   _player.actionAtItemEnd = AVPlayerActionAtItemEndNone;
 
   _isLiveStream = isLiveStream;
+
+  _playbackRate = 1.0;
 
   // This is to fix 2 bugs: 1. blank video for encrypted video streams on iOS 16
   // (https://github.com/flutter/flutter/issues/111457) and 2. swapped width and height for some
@@ -480,9 +483,13 @@ NS_INLINE UIViewController *rootViewController(void) {
   }
   if (_isPlaying) {
     [_player play];
+    _player.rate = _playbackRate;
   } else {
     [_player pause];
   }
+
+  [self syncNowPlayingInfo];
+
   _displayLink.paused = !_isPlaying;
 }
 
@@ -567,7 +574,15 @@ NS_INLINE UIViewController *rootViewController(void) {
   [_player seekToTime:locationCMT
         toleranceBefore:tolerance
          toleranceAfter:tolerance
-      completionHandler:completionHandler];
+      completionHandler:^(BOOL finished){
+        if (finished) {
+          if (_isPlaying) {
+            _player.rate = _playbackRate;
+          }
+          [self syncNowPlayingInfo];
+        }
+        completionHandler(finished);
+    }];
 }
 
 - (void)setIsLooping:(BOOL)isLooping {
@@ -599,7 +614,20 @@ NS_INLINE UIViewController *rootViewController(void) {
     return;
   }
 
-  _player.rate = speed;
+  _playbackRate = speed == 0.0 ? 1.0 : speed;
+  if (_isPlaying) {
+    _player.rate = speed;
+  }
+  [self syncNowPlayingInfo];
+}
+
+// nowPlayingInfoの再生位置表示は、設定されたrateとpositionを元にRemoteControlCenterが自動で現在位置を計算するため、
+// 再生速度や再生位置が変更されるたびに設定しなおす必要がある
+- (void)syncNowPlayingInfo {
+  NSMutableDictionary *nowPlayingInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+  [nowPlayingInfo setObject:@(self.position / 1000) forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
+  [nowPlayingInfo setObject:@(_player.rate) forKey:MPNowPlayingInfoPropertyPlaybackRate];
+  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
 - (CVPixelBufferRef)copyPixelBuffer {
@@ -918,6 +946,7 @@ NSNumber *_isLiveStream;
     MPMediaItemPropertyArtist: _artist,
     MPMediaItemPropertyPlaybackDuration: @(player.duration / 1000),
     MPNowPlayingInfoPropertyElapsedPlaybackTime: @(player.position / 1000),
+    MPNowPlayingInfoPropertyPlaybackRate: @(player.playbackRate),
     MPNowPlayingInfoPropertyIsLiveStream: _isLiveStream,
   };
 
