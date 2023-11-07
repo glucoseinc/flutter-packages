@@ -183,6 +183,10 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
             eventType: VideoEventType.isPlayingStateUpdate,
             isPlaying: map['isPlaying'] as bool,
           );
+        case 'play':
+          return VideoEvent(eventType: VideoEventType.play);
+        case 'pause':
+          return VideoEvent(eventType: VideoEventType.pause);
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }

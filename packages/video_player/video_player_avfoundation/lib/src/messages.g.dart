@@ -143,6 +143,10 @@ class CreateMessage {
     this.packageName,
     this.formatHint,
     required this.httpHeaders,
+    required this.title,
+    required this.artist,
+    this.imageUrl,
+    required this.isLiveStream,
   });
 
   String? asset;
@@ -155,6 +159,14 @@ class CreateMessage {
 
   Map<String?, String?> httpHeaders;
 
+  String title;
+
+  String artist;
+
+  String? imageUrl;
+
+  bool isLiveStream;
+
   Object encode() {
     return <Object?>[
       asset,
@@ -162,6 +174,10 @@ class CreateMessage {
       packageName,
       formatHint,
       httpHeaders,
+      title,
+      artist,
+      imageUrl,
+      isLiveStream,
     ];
   }
 
@@ -173,6 +189,10 @@ class CreateMessage {
       packageName: result[2] as String?,
       formatHint: result[3] as String?,
       httpHeaders: (result[4] as Map<Object?, Object?>?)!.cast<String?, String?>(),
+      title: result[5]! as String,
+      artist: result[6]! as String,
+      imageUrl: result[7] as String?,
+      isLiveStream: result[8]! as bool,
     );
   }
 }

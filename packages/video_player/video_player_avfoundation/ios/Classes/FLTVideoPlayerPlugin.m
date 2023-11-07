@@ -65,12 +65,15 @@
 @property(nonatomic, readonly) BOOL disposed;
 @property(nonatomic, readonly) BOOL isPlaying;
 @property(nonatomic) BOOL isLooping;
+@property(nonatomic) BOOL isLiveStream;
 @property(nonatomic, readonly) BOOL isInitialized;
 @property(nonatomic) BOOL isPictureInPictureStarted;
+@property(nonatomic) AVPlayerTimeControlStatus lastAVPlayerTimeControlStatus;
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
-              playerFactory:(id<FVPPlayerFactory>)playerFactory;
+              playerFactory:(id<FVPPlayerFactory>)playerFactory
+               isLiveStream:(BOOL)isLiveStream;
 @end
 
 static void *timeRangeContext = &timeRangeContext;
@@ -90,7 +93,8 @@ static void *rateContext = &rateContext;
   return [self initWithURL:[NSURL fileURLWithPath:path]
               frameUpdater:frameUpdater
                httpHeaders:@{}
-             playerFactory:playerFactory];
+             playerFactory:playerFactory
+             isLiveStream:NO];
 }
 
 - (void)addObserversForItem:(AVPlayerItem *)item player:(AVPlayer *)player {
@@ -238,24 +242,28 @@ NS_INLINE UIViewController *rootViewController(void) {
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
-              playerFactory:(id<FVPPlayerFactory>)playerFactory {
+              playerFactory:(id<FVPPlayerFactory>)playerFactory
+               isLiveStream:(BOOL)isLiveStream {
   NSDictionary<NSString *, id> *options = nil;
   if ([headers count] != 0) {
     options = @{@"AVURLAssetHTTPHeaderFieldsKey" : headers};
   }
   AVURLAsset *urlAsset = [AVURLAsset URLAssetWithURL:url options:options];
   AVPlayerItem *item = [AVPlayerItem playerItemWithAsset:urlAsset];
-  return [self initWithPlayerItem:item frameUpdater:frameUpdater playerFactory:playerFactory];
+  return [self initWithPlayerItem:item frameUpdater:frameUpdater playerFactory:playerFactory isLiveStream:isLiveStream];
 }
 
 - (instancetype)initWithPlayerItem:(AVPlayerItem *)item
                       frameUpdater:(FLTFrameUpdater *)frameUpdater
-                     playerFactory:(id<FVPPlayerFactory>)playerFactory {
+                     playerFactory:(id<FVPPlayerFactory>)playerFactory 
+                      isLiveStream:(BOOL)isLiveStream {
   self = [super init];
   NSAssert(self, @"super init cannot be nil");
 
   _player = [AVPlayer playerWithPlayerItem:item];
   _player.actionAtItemEnd = AVPlayerActionAtItemEndNone;
+
+  _isLiveStream = isLiveStream;
 
   // This is to fix 2 bugs: 1. blank video for encrypted video streams on iOS 16
   // (https://github.com/flutter/flutter/issues/111457) and 2. swapped width and height for some
@@ -322,6 +330,7 @@ NS_INLINE UIViewController *rootViewController(void) {
         [[AVPictureInPictureController alloc] initWithPlayerLayer:self.playerLayer];
     [self setAutomaticallyStartsPictureInPicture:NO];
     self.pictureInPictureController.delegate = self;
+    self.pictureInPictureController.requiresLinearPlayback = _isLiveStream;
   }
 }
 
@@ -377,6 +386,11 @@ NS_INLINE UIViewController *rootViewController(void) {
     _eventSink(@{@"event" : @"startedPictureInPicture"});
   }
   [self updatePlayingState];
+}
+
+- (void)pictureInPictureControllerWillStartPictureInPicture:
+    (AVPictureInPictureController *)pictureInPictureController {
+    _lastAVPlayerTimeControlStatus = _player.timeControlStatus;
 }
 
 - (void)observeValueForKeyPath:(NSString *)path
@@ -441,9 +455,21 @@ NS_INLINE UIViewController *rootViewController(void) {
     // Important: Make sure to cast the object to AVPlayer when observing the rate property,
     // as it is not available in AVPlayerItem.
     AVPlayer *player = (AVPlayer *)object;
-    if (_eventSink != nil) {
-      _eventSink(
-          @{@"event" : @"isPlayingStateUpdate", @"isPlaying" : player.rate > 0 ? @YES : @NO});
+    if (_pictureInPictureController.pictureInPictureActive == true) {
+      AVPlayerTimeControlStatus newStatus = player.timeControlStatus;
+      if (_lastAVPlayerTimeControlStatus != [NSNull null] && _lastAVPlayerTimeControlStatus == newStatus){
+        return;
+      }
+      _lastAVPlayerTimeControlStatus = newStatus;
+
+      if (_eventSink) {
+        _eventSink(@{@"event" : newStatus == AVPlayerTimeControlStatusPaused ? @"pause" : @"play"});
+      }
+    } else {
+      if (_eventSink != nil) {
+        _eventSink(
+            @{@"event" : @"isPlayingStateUpdate", @"isPlaying" : player.rate > 0 ? @YES : @NO});
+      }
     }
   }
 }
@@ -654,6 +680,10 @@ NS_INLINE UIViewController *rootViewController(void) {
 
 @implementation FLTVideoPlayerPlugin
 bool _remoteCommandsInitialized;
+NSString *_title;
+NSString *_artist;
+NSString *_imageUrl;
+NSNumber *_isLiveStream;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
   FLTVideoPlayerPlugin *instance = [[FLTVideoPlayerPlugin alloc] initWithRegistrar:registrar];
@@ -715,6 +745,12 @@ bool _remoteCommandsInitialized;
 
 - (FLTTextureMessage *)create:(FLTCreateMessage *)input error:(FlutterError **)error {
   FLTFrameUpdater *frameUpdater = [[FLTFrameUpdater alloc] initWithRegistry:_registry];
+
+  _title = input.title;
+  _artist = input.artist;
+  _imageUrl = input.imageUrl;
+  _isLiveStream = input.isLiveStream;
+
   FLTVideoPlayer *player;
   if (input.asset) {
     NSString *assetPath;
@@ -731,7 +767,9 @@ bool _remoteCommandsInitialized;
     player = [[FLTVideoPlayer alloc] initWithURL:[NSURL URLWithString:input.uri]
                                     frameUpdater:frameUpdater
                                      httpHeaders:input.httpHeaders
-                                   playerFactory:_playerFactory];
+                                   playerFactory:_playerFactory
+                                    isLiveStream:[_isLiveStream boolValue]];
+
     return [self onPlayerSetup:player frameUpdater:frameUpdater];
   } else {
     *error = [FlutterError errorWithCode:@"video_player" message:@"not implemented" details:nil];
@@ -850,30 +888,40 @@ bool _remoteCommandsInitialized;
   // 再生・一時停止が切り替わった時のイベントハンドラ
   [commandCenter.togglePlayPauseCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
     if (player.isPlaying){
-      [player pause];
+      if (player.eventSink) {
+        player.eventSink(@{@"event" : @"pause"});
+      }
     } else {
-      [player play];
+      if (player.eventSink) {
+        player.eventSink(@{@"event" : @"play"});
+      }
     }
     return MPRemoteCommandHandlerStatusSuccess;
   }];
   // 再生ボタンが押された時のイベントハンドラ
   [commandCenter.playCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-    [player play];
+    if (player.eventSink) {
+      player.eventSink(@{@"event" : @"play"});
+    }
     return MPRemoteCommandHandlerStatusSuccess;
   }];
   // 一時停止ボタンが押された時のイベントハンドラ
   [commandCenter.pauseCommand addTargetWithHandler: ^MPRemoteCommandHandlerStatus(MPRemoteCommandEvent * _Nonnull event) {
-    [player pause];
+    if (player.eventSink) {
+      player.eventSink(@{@"event" : @"pause"});
+    }
     return MPRemoteCommandHandlerStatusSuccess;
   }];
 
-  // [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = @{
-  //   MPMediaItemPropertyTitle: @"番組名",
-  //   MPMediaItemPropertyArtist: @"チャンネル名",
-  //   MPMediaItemPropertyPlaybackDuration: @(player.duration),
-  //   MPNowPlayingInfoPropertyElapsedPlaybackTime: @(player.position),
-  //   MPNowPlayingInfoPropertyPlaybackRate: @(player.isPlaying ? 1.0 : 0.0),
-  // };
+  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = @{
+    MPMediaItemPropertyTitle: _title,
+    MPMediaItemPropertyArtist: _artist,
+    MPMediaItemPropertyPlaybackDuration: @(player.duration / 1000),
+    MPNowPlayingInfoPropertyElapsedPlaybackTime: @(player.position / 1000),
+    MPNowPlayingInfoPropertyIsLiveStream: _isLiveStream,
+  };
+
+  // TODO: サムネを設定する
 
   _remoteCommandsInitialized = true;
 }

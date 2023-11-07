@@ -14,7 +14,15 @@ import 'package:video_player_platform_interface/video_player_platform_interface.
 import 'src/closed_caption_file.dart';
 
 export 'package:video_player_platform_interface/video_player_platform_interface.dart'
-    show DurationRange, DataSourceType, VideoFormat, VideoPlayerOptions, MuxConfig, MuxPageType, MuxVideoStreamType;
+    show
+        DurationRange,
+        DataSourceType,
+        VideoFormat,
+        VideoPlayerOptions,
+        MediaInfo,
+        MuxConfig,
+        MuxPageType,
+        MuxVideoStreamType;
 
 export 'src/closed_caption_file.dart';
 
@@ -263,11 +271,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   VideoPlayerController.asset(this.dataSource,
       {this.package,
       Future<ClosedCaptionFile>? closedCaptionFile,
-      this.videoPlayerOptions})
+      this.videoPlayerOptions,
+      this.mediaInfo})
       : _closedCaptionFileFuture = closedCaptionFile,
         dataSourceType = DataSourceType.asset,
         formatHint = null,
         httpHeaders = const <String, String>{},
+        isLiveStream = false,
         super(const VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a network video.
@@ -286,6 +296,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
     this.httpHeaders = const <String, String>{},
+    this.mediaInfo,
+    required this.isLiveStream,
   })  : _closedCaptionFileFuture = closedCaptionFile,
         dataSourceType = DataSourceType.network,
         package = null,
@@ -306,6 +318,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
     Future<ClosedCaptionFile>? closedCaptionFile,
     this.videoPlayerOptions,
     this.httpHeaders = const <String, String>{},
+    this.mediaInfo,
+    required this.isLiveStream,
   })  : _closedCaptionFileFuture = closedCaptionFile,
         dataSource = url.toString(),
         dataSourceType = DataSourceType.network,
@@ -319,12 +333,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   VideoPlayerController.file(File file,
       {Future<ClosedCaptionFile>? closedCaptionFile,
       this.videoPlayerOptions,
-      this.httpHeaders = const <String, String>{}})
+      this.httpHeaders = const <String, String>{},
+      this.mediaInfo})
       : _closedCaptionFileFuture = closedCaptionFile,
         dataSource = Uri.file(file.absolute.path).toString(),
         dataSourceType = DataSourceType.file,
         package = null,
         formatHint = null,
+        isLiveStream = false,
         super(const VideoPlayerValue(duration: Duration.zero));
 
   /// Constructs a [VideoPlayerController] playing a video from a contentUri.
@@ -332,7 +348,9 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// This will load the video from the input content-URI.
   /// This is supported on Android only.
   VideoPlayerController.contentUri(Uri contentUri,
-      {Future<ClosedCaptionFile>? closedCaptionFile, this.videoPlayerOptions})
+      {Future<ClosedCaptionFile>? closedCaptionFile,
+      this.videoPlayerOptions,
+      this.mediaInfo})
       : assert(defaultTargetPlatform == TargetPlatform.android,
             'VideoPlayerController.contentUri is only supported on Android.'),
         _closedCaptionFileFuture = closedCaptionFile,
@@ -341,6 +359,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
         package = null,
         formatHint = null,
         httpHeaders = const <String, String>{},
+        isLiveStream = false,
         super(const VideoPlayerValue(duration: Duration.zero));
 
   /// The URI to the video file. This will be in different formats depending on
@@ -365,6 +384,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   /// Only set for [asset] videos. The package that the asset was loaded from.
   final String? package;
+
+  /// iOSではコントロールセンター、AndroidではNotificationに表示されるメディア情報
+  final MediaInfo? mediaInfo;
+
+  ///
+  final bool isLiveStream;
 
   Future<ClosedCaptionFile>? _closedCaptionFileFuture;
   ClosedCaptionFile? _closedCaptionFile;
@@ -401,6 +426,7 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           sourceType: DataSourceType.asset,
           asset: dataSource,
           package: package,
+          mediaInfo: mediaInfo,
         );
         break;
       case DataSourceType.network:
@@ -409,6 +435,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           uri: dataSource,
           formatHint: formatHint,
           httpHeaders: httpHeaders,
+          mediaInfo: mediaInfo,
+          isLiveStream: isLiveStream,
         );
         break;
       case DataSourceType.file:
@@ -416,12 +444,14 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           sourceType: DataSourceType.file,
           uri: dataSource,
           httpHeaders: httpHeaders,
+          mediaInfo: mediaInfo,
         );
         break;
       case DataSourceType.contentUri:
         dataSourceDescription = DataSource(
           sourceType: DataSourceType.contentUri,
           uri: dataSource,
+          mediaInfo: mediaInfo,
         );
         break;
     }
@@ -479,6 +509,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
           break;
         case VideoEventType.isPlayingStateUpdate:
           value = value.copyWith(isPlaying: event.isPlaying);
+          break;
+        case VideoEventType.play:
+          play();
+          break;
+        case VideoEventType.pause:
+          pause();
           break;
         case VideoEventType.unknown:
           break;

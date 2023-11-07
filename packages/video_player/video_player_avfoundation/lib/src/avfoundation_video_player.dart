@@ -89,6 +89,10 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       uri: uri,
       httpHeaders: httpHeaders,
       formatHint: formatHint,
+      title: dataSource.mediaInfo?.title ?? '',
+      artist: dataSource.mediaInfo?.artist ?? '',
+      imageUrl: dataSource.mediaInfo?.imageUrl,
+      isLiveStream: dataSource.isLiveStream,
     );
 
     final TextureMessage response = await _api.create(message);
@@ -180,6 +184,10 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
             eventType: VideoEventType.isPlayingStateUpdate,
             isPlaying: map['isPlaying'] as bool,
           );
+        case 'play':
+          return VideoEvent(eventType: VideoEventType.play);
+        case 'pause':
+          return VideoEvent(eventType: VideoEventType.pause);
         default:
           return VideoEvent(eventType: VideoEventType.unknown);
       }
