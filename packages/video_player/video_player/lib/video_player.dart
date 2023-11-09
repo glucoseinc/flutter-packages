@@ -268,12 +268,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// The name of the asset is given by the [dataSource] argument and must not be
   /// null. The [package] argument must be non-null when the asset comes from a
   /// package and null otherwise.
-  VideoPlayerController.asset(this.dataSource,
-      {this.package,
-      Future<ClosedCaptionFile>? closedCaptionFile,
-      this.videoPlayerOptions,
-      this.mediaInfo})
-      : _closedCaptionFileFuture = closedCaptionFile,
+  VideoPlayerController.asset(
+    this.dataSource, {
+    this.package,
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    this.videoPlayerOptions,
+    this.mediaInfo,
+  })  : _closedCaptionFileFuture = closedCaptionFile,
         dataSourceType = DataSourceType.asset,
         formatHint = null,
         httpHeaders = const <String, String>{},
@@ -330,12 +331,13 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ///
   /// This will load the file from a file:// URI constructed from [file]'s path.
   /// [httpHeaders] option allows to specify HTTP headers, mainly used for hls files like (m3u8).
-  VideoPlayerController.file(File file,
-      {Future<ClosedCaptionFile>? closedCaptionFile,
-      this.videoPlayerOptions,
-      this.httpHeaders = const <String, String>{},
-      this.mediaInfo})
-      : _closedCaptionFileFuture = closedCaptionFile,
+  VideoPlayerController.file(
+    File file, {
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    this.videoPlayerOptions,
+    this.httpHeaders = const <String, String>{},
+    this.mediaInfo,
+  })  : _closedCaptionFileFuture = closedCaptionFile,
         dataSource = Uri.file(file.absolute.path).toString(),
         dataSourceType = DataSourceType.file,
         package = null,
@@ -347,11 +349,12 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   ///
   /// This will load the video from the input content-URI.
   /// This is supported on Android only.
-  VideoPlayerController.contentUri(Uri contentUri,
-      {Future<ClosedCaptionFile>? closedCaptionFile,
-      this.videoPlayerOptions,
-      this.mediaInfo})
-      : assert(defaultTargetPlatform == TargetPlatform.android,
+  VideoPlayerController.contentUri(
+    Uri contentUri, {
+    Future<ClosedCaptionFile>? closedCaptionFile,
+    this.videoPlayerOptions,
+    this.mediaInfo,
+  })  : assert(defaultTargetPlatform == TargetPlatform.android,
             'VideoPlayerController.contentUri is only supported on Android.'),
         _closedCaptionFileFuture = closedCaptionFile,
         dataSource = contentUri.toString(),
@@ -390,6 +393,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
 
   ///
   final bool isLiveStream;
+
+  Future<void> Function()? beforePlay;
 
   Future<ClosedCaptionFile>? _closedCaptionFileFuture;
   ClosedCaptionFile? _closedCaptionFile;
@@ -577,6 +582,8 @@ class VideoPlayerController extends ValueNotifier<VideoPlayerValue> {
   /// has been sent to the platform, not when playback itself is totally
   /// finished.
   Future<void> play() async {
+    await beforePlay?.call();
+
     if (value.position == value.duration) {
       await seekTo(Duration.zero);
     }
