@@ -145,7 +145,8 @@ class CreateMessage {
     required this.httpHeaders,
     required this.title,
     required this.artist,
-    this.imageUrl,
+    this.artworkUrl,
+    this.defaultArtworkAssetPath,
     required this.isLiveStream,
   });
 
@@ -163,7 +164,9 @@ class CreateMessage {
 
   String artist;
 
-  String? imageUrl;
+  String? artworkUrl;
+
+  String? defaultArtworkAssetPath;
 
   bool isLiveStream;
 
@@ -176,7 +179,8 @@ class CreateMessage {
       httpHeaders,
       title,
       artist,
-      imageUrl,
+      artworkUrl,
+      defaultArtworkAssetPath,
       isLiveStream,
     ];
   }
@@ -191,8 +195,9 @@ class CreateMessage {
       httpHeaders: (result[4] as Map<Object?, Object?>?)!.cast<String?, String?>(),
       title: result[5]! as String,
       artist: result[6]! as String,
-      imageUrl: result[7] as String?,
-      isLiveStream: result[8]! as bool,
+      artworkUrl: result[7] as String?,
+      defaultArtworkAssetPath: result[8] as String?,
+      isLiveStream: result[9]! as bool,
     );
   }
 }

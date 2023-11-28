@@ -58,7 +58,8 @@ class CreateMessage {
   Map<String?, String?> httpHeaders;
   String title;
   String artist;
-  String? imageUrl;
+  String? artworkUrl;
+  String? defaultArtworkAssetPath;
   bool isLiveStream;
 }
 

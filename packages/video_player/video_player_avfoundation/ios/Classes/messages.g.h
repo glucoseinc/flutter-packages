@@ -81,7 +81,8 @@ NS_ASSUME_NONNULL_BEGIN
     httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders
     title:(NSString *)title
     artist:(NSString *)artist
-    imageUrl:(nullable NSString *)imageUrl
+    artworkUrl:(nullable NSString *)artworkUrl
+    defaultArtworkAssetPath:(nullable NSString *)defaultArtworkAssetPath
     isLiveStream:(NSNumber *)isLiveStream;
 @property(nonatomic, copy, nullable) NSString * asset;
 @property(nonatomic, copy, nullable) NSString * uri;
@@ -90,7 +91,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, strong) NSDictionary<NSString *, NSString *> * httpHeaders;
 @property(nonatomic, copy) NSString * title;
 @property(nonatomic, copy) NSString * artist;
-@property(nonatomic, copy, nullable) NSString * imageUrl;
+@property(nonatomic, copy, nullable) NSString * artworkUrl;
+@property(nonatomic, copy, nullable) NSString * defaultArtworkAssetPath;
 @property(nonatomic, strong) NSNumber * isLiveStream;
 @end
 
