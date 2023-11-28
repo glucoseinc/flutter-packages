@@ -460,7 +460,7 @@ NS_INLINE UIViewController *rootViewController(void) {
     AVPlayer *player = (AVPlayer *)object;
     if (_pictureInPictureController.pictureInPictureActive == true) {
       AVPlayerTimeControlStatus newStatus = player.timeControlStatus;
-      if (_lastAVPlayerTimeControlStatus != [NSNull null] && _lastAVPlayerTimeControlStatus == newStatus){
+      if (_lastAVPlayerTimeControlStatus == newStatus){
         return;
       }
       _lastAVPlayerTimeControlStatus = newStatus;
@@ -576,8 +576,8 @@ NS_INLINE UIViewController *rootViewController(void) {
          toleranceAfter:tolerance
       completionHandler:^(BOOL finished){
         if (finished) {
-          if (_isPlaying) {
-            _player.rate = _playbackRate;
+          if (self->_isPlaying) {
+            self->_player.rate = self->_playbackRate;
           }
           [self syncNowPlayingInfo];
         }
