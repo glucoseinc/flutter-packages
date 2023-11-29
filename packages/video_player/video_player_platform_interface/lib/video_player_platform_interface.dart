@@ -509,10 +509,12 @@ class MediaInfo {
   const MediaInfo({
     required this.title,
     required this.artist,
-    this.imageUrl,
+    this.artworkUrl,
+    this.defaultArtworkAssetPath,
   });
 
   final String title;
   final String artist;
-  final String? imageUrl;
+  final String? artworkUrl;
+  final String? defaultArtworkAssetPath;
 }

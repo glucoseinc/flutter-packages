@@ -91,7 +91,8 @@ class AVFoundationVideoPlayer extends VideoPlayerPlatform {
       formatHint: formatHint,
       title: dataSource.mediaInfo?.title ?? '',
       artist: dataSource.mediaInfo?.artist ?? '',
-      imageUrl: dataSource.mediaInfo?.imageUrl,
+      artworkUrl: dataSource.mediaInfo?.artworkUrl,
+      defaultArtworkAssetPath: dataSource.mediaInfo?.defaultArtworkAssetPath,
       isLiveStream: dataSource.isLiveStream,
     );
 

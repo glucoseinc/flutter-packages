@@ -460,7 +460,7 @@ NS_INLINE UIViewController *rootViewController(void) {
     AVPlayer *player = (AVPlayer *)object;
     if (_pictureInPictureController.pictureInPictureActive == true) {
       AVPlayerTimeControlStatus newStatus = player.timeControlStatus;
-      if (_lastAVPlayerTimeControlStatus != [NSNull null] && _lastAVPlayerTimeControlStatus == newStatus){
+      if (_lastAVPlayerTimeControlStatus == newStatus){
         return;
       }
       _lastAVPlayerTimeControlStatus = newStatus;
@@ -576,8 +576,8 @@ NS_INLINE UIViewController *rootViewController(void) {
          toleranceAfter:tolerance
       completionHandler:^(BOOL finished){
         if (finished) {
-          if (_isPlaying) {
-            _player.rate = _playbackRate;
+          if (self->_isPlaying) {
+            self->_player.rate = self->_playbackRate;
           }
           [self syncNowPlayingInfo];
         }
@@ -710,7 +710,8 @@ NS_INLINE UIViewController *rootViewController(void) {
 bool _remoteCommandsInitialized;
 NSString *_title;
 NSString *_artist;
-NSString *_imageUrl;
+NSString *_artworkUrl;
+NSString *_defaultArtworkAssetPath;
 NSNumber *_isLiveStream;
 
 + (void)registerWithRegistrar:(NSObject<FlutterPluginRegistrar> *)registrar {
@@ -776,7 +777,8 @@ NSNumber *_isLiveStream;
 
   _title = input.title;
   _artist = input.artist;
-  _imageUrl = input.imageUrl;
+  _artworkUrl = input.artworkUrl;
+  _defaultArtworkAssetPath = input.defaultArtworkAssetPath;
   _isLiveStream = input.isLiveStream;
 
   FLTVideoPlayer *player;
@@ -941,18 +943,76 @@ NSNumber *_isLiveStream;
     return MPRemoteCommandHandlerStatusSuccess;
   }];
 
-  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = @{
-    MPMediaItemPropertyTitle: _title,
-    MPMediaItemPropertyArtist: _artist,
-    MPMediaItemPropertyPlaybackDuration: @(player.duration / 1000),
-    MPNowPlayingInfoPropertyElapsedPlaybackTime: @(player.position / 1000),
-    MPNowPlayingInfoPropertyPlaybackRate: @(player.playbackRate),
-    MPNowPlayingInfoPropertyIsLiveStream: _isLiveStream,
-  };
+  NSMutableDictionary *nowPlayingInfoDict = [
+    @{
+      MPMediaItemPropertyTitle: _title,
+      MPMediaItemPropertyArtist: _artist,
+      MPMediaItemPropertyPlaybackDuration: @(player.duration / 1000),
+      MPNowPlayingInfoPropertyElapsedPlaybackTime: @(player.position / 1000),
+      MPNowPlayingInfoPropertyPlaybackRate: @(player.playbackRate),
+      MPNowPlayingInfoPropertyIsLiveStream: _isLiveStream,
+    }
+    mutableCopy
+  ];
 
-  // TODO: サムネを設定する
+  // デフォルトで表示するサムネイルの設定
+  if (_defaultArtworkAssetPath) {
+    NSString *artworkFilePath = [
+      [NSBundle mainBundle]
+      pathForResource:[_registrar lookupKeyForAsset:_defaultArtworkAssetPath]
+      ofType:nil
+    ];
+    UIImage *img = [UIImage imageWithContentsOfFile:artworkFilePath];
+    MPMediaItemArtwork *artworkImage = [
+      [MPMediaItemArtwork alloc]
+      // サムネのサイズを変えたい場合はここで変更する
+      initWithBoundsSize: img.size requestHandler:^UIImage * _Nonnull(CGSize size) {
+        return img;
+      }
+    ];
+
+    [nowPlayingInfoDict setObject:artworkImage forKey:MPMediaItemPropertyArtwork];
+  }
+
+  [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfoDict;
+
+  // 画像の取得には時間がかかる場合があるため、他の情報を先に表示しておき、画像が読み込まれたら更新する。
+  if (_artworkUrl) {
+    // バックグラウンドで非同期処理
+    dispatch_queue_t queue = dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0);
+    dispatch_async(queue, ^ {
+      [self loadArtworkImage];
+    });
+  }
 
   _remoteCommandsInitialized = true;
+}
+
+- (void)loadArtworkImage {
+  @try {
+    UIImage *img = [_artworkUrl hasPrefix:@"http"]
+      // http(s)の場合 -> 画像をダウンロードする
+      // TODO: キャッシュ効くようにする？
+      ? [UIImage imageWithData:[NSData dataWithContentsOfURL:[NSURL URLWithString:_artworkUrl]]]
+      // http(s)じゃないURLが渡されてきた場合 -> ファイルURLと解釈する
+      : [UIImage imageWithContentsOfFile:_artworkUrl];
+
+    if (img) {
+      NSMutableDictionary *currentNowPlayingInfoDict = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
+      MPMediaItemArtwork *artworkImage = [
+        [MPMediaItemArtwork alloc]
+        // サムネのサイズを変えたい場合はここで変更する
+        initWithBoundsSize: img.size requestHandler:^UIImage * _Nonnull(CGSize size) {
+          return img;
+        }
+      ];
+      [currentNowPlayingInfoDict setObject:artworkImage forKey:MPMediaItemPropertyArtwork];
+      [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = currentNowPlayingInfoDict;
+    }
+  }
+  @catch(NSException *exception) {
+    NSLog(@"Failed to load artwork: %@", exception);
+  }
 }
 
 - (void)teardownControlCenter {

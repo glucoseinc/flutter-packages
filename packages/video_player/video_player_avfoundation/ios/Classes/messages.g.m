@@ -251,7 +251,8 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     httpHeaders:(NSDictionary<NSString *, NSString *> *)httpHeaders
     title:(NSString *)title
     artist:(NSString *)artist
-    imageUrl:(nullable NSString *)imageUrl
+    artworkUrl:(nullable NSString *)artworkUrl
+    defaultArtworkAssetPath:(nullable NSString *)defaultArtworkAssetPath
     isLiveStream:(NSNumber *)isLiveStream {
   FLTCreateMessage* pigeonResult = [[FLTCreateMessage alloc] init];
   pigeonResult.asset = asset;
@@ -261,7 +262,8 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
   pigeonResult.httpHeaders = httpHeaders;
   pigeonResult.title = title;
   pigeonResult.artist = artist;
-  pigeonResult.imageUrl = imageUrl;
+  pigeonResult.artworkUrl = artworkUrl;
+  pigeonResult.defaultArtworkAssetPath = defaultArtworkAssetPath;
   pigeonResult.isLiveStream = isLiveStream;
   return pigeonResult;
 }
@@ -277,8 +279,9 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
   NSAssert(pigeonResult.title != nil, @"");
   pigeonResult.artist = GetNullableObjectAtIndex(list, 6);
   NSAssert(pigeonResult.artist != nil, @"");
-  pigeonResult.imageUrl = GetNullableObjectAtIndex(list, 7);
-  pigeonResult.isLiveStream = GetNullableObjectAtIndex(list, 8);
+  pigeonResult.artworkUrl = GetNullableObjectAtIndex(list, 7);
+  pigeonResult.defaultArtworkAssetPath = GetNullableObjectAtIndex(list, 8);
+  pigeonResult.isLiveStream = GetNullableObjectAtIndex(list, 9);
   NSAssert(pigeonResult.isLiveStream != nil, @"");
   return pigeonResult;
 }
@@ -294,7 +297,8 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     (self.httpHeaders ?: [NSNull null]),
     (self.title ?: [NSNull null]),
     (self.artist ?: [NSNull null]),
-    (self.imageUrl ?: [NSNull null]),
+    (self.artworkUrl ?: [NSNull null]),
+    (self.defaultArtworkAssetPath ?: [NSNull null]),
     (self.isLiveStream ?: [NSNull null]),
   ];
 }
