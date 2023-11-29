@@ -43,12 +43,18 @@ class PositionMessage {
 }
 
 class CreateMessage {
-  CreateMessage({required this.httpHeaders});
+  CreateMessage({required this.httpHeaders, this.title = '', this.artist = '', this.isLiveStream = false});
+
   String? asset;
   String? uri;
   String? packageName;
   String? formatHint;
   Map<String?, String?> httpHeaders;
+  String title;
+  String artist;
+  String? artworkUrl;
+  String? defaultArtworkAssetPath;
+  bool isLiveStream;
 }
 
 class MixWithOthersMessage {
