@@ -7,7 +7,10 @@ package io.flutter.plugins.videoplayer;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.Intent;
+import android.graphics.Bitmap;
 import android.net.Uri;
 import android.view.Surface;
 import androidx.annotation.NonNull;
@@ -32,6 +35,8 @@ import com.google.android.exoplayer2.upstream.DataSource;
 import com.google.android.exoplayer2.upstream.DefaultDataSource;
 import com.google.android.exoplayer2.upstream.DefaultHttpDataSource;
 import com.google.android.exoplayer2.upstream.ResolvingDataSource;
+import com.google.android.exoplayer2.ui.PlayerNotificationManager;
+import static com.google.android.exoplayer2.ui.PlayerNotificationManager.MediaDescriptionAdapter;
 import com.google.android.exoplayer2.util.Util;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
@@ -47,6 +52,9 @@ final class VideoPlayer {
   private static final String FORMAT_HLS = "hls";
   private static final String FORMAT_OTHER = "other";
 
+  private static final int NOTIFICATION_ID = 2020101921;
+  private static final String NOTIFICATION_CHANNEL = "SHIRASU_PLAYER_NOTIFICATION";
+
   public ExoPlayer exoPlayer;
 
   private Surface surface;
@@ -59,7 +67,8 @@ final class VideoPlayer {
 
   private static final String USER_AGENT = "User-Agent";
 
-  @VisibleForTesting boolean isInitialized = false;
+  @VisibleForTesting
+  boolean isInitialized = false;
 
   private final VideoPlayerOptions options;
 
@@ -69,6 +78,8 @@ final class VideoPlayer {
   private String dataSource;
   private String formatHint;
   private Map<String, String> httpHeaders = new HashMap<>();
+
+  private PlayerNotificationManager playerNotificationManager;
 
   VideoPlayer(
       Context context,
@@ -89,14 +100,11 @@ final class VideoPlayer {
     Uri uri = Uri.parse(dataSource);
 
     buildHttpDataSourceFactory(httpHeaders);
-    DataSource.Factory dataSourceFactory =
-        new DefaultDataSource.Factory(context, httpDataSourceFactory);
+    DataSource.Factory dataSourceFactory = new DefaultDataSource.Factory(context, httpDataSourceFactory);
 
-    resolvingDataSourceFactory = 
-        new ResolvingDataSource.Factory(
-          dataSourceFactory,
-          dataSpec -> dataSpec.withRequestHeaders(httpHeaders)
-        );
+    resolvingDataSourceFactory = new ResolvingDataSource.Factory(
+        dataSourceFactory,
+        dataSpec -> dataSpec.withRequestHeaders(httpHeaders));
 
     MediaSource mediaSource = buildMediaSource(uri, resolvingDataSourceFactory, formatHint);
 
@@ -126,10 +134,9 @@ final class VideoPlayer {
   @VisibleForTesting
   public void buildHttpDataSourceFactory(@NonNull Map<String, String> httpHeaders) {
     final boolean httpHeadersNotEmpty = !httpHeaders.isEmpty();
-    final String userAgent =
-        httpHeadersNotEmpty && httpHeaders.containsKey(USER_AGENT)
-            ? httpHeaders.get(USER_AGENT)
-            : "ExoPlayer";
+    final String userAgent = httpHeadersNotEmpty && httpHeaders.containsKey(USER_AGENT)
+        ? httpHeaders.get(USER_AGENT)
+        : "ExoPlayer";
 
     httpDataSourceFactory.setUserAgent(userAgent).setAllowCrossProtocolRedirects(true);
   }
@@ -161,11 +168,11 @@ final class VideoPlayer {
     switch (type) {
       case C.CONTENT_TYPE_SS:
         return new SsMediaSource.Factory(
-                new DefaultSsChunkSource.Factory(mediaDataSourceFactory), mediaDataSourceFactory)
+            new DefaultSsChunkSource.Factory(mediaDataSourceFactory), mediaDataSourceFactory)
             .createMediaSource(MediaItem.fromUri(uri));
       case C.CONTENT_TYPE_DASH:
         return new DashMediaSource.Factory(
-                new DefaultDashChunkSource.Factory(mediaDataSourceFactory), mediaDataSourceFactory)
+            new DefaultDashChunkSource.Factory(mediaDataSourceFactory), mediaDataSourceFactory)
             .createMediaSource(MediaItem.fromUri(uri));
       case C.CONTENT_TYPE_HLS:
         return new HlsMediaSource.Factory(mediaDataSourceFactory)
@@ -173,10 +180,9 @@ final class VideoPlayer {
       case C.CONTENT_TYPE_OTHER:
         return new ProgressiveMediaSource.Factory(mediaDataSourceFactory)
             .createMediaSource(MediaItem.fromUri(uri));
-      default:
-        {
-          throw new IllegalStateException("Unsupported type: " + type);
-        }
+      default: {
+        throw new IllegalStateException("Unsupported type: " + type);
+      }
     }
   }
 
@@ -259,7 +265,8 @@ final class VideoPlayer {
     Map<String, Object> event = new HashMap<>();
     event.put("event", "bufferingUpdate");
     List<? extends Number> range = Arrays.asList(0, exoPlayer.getBufferedPosition());
-    // iOS supports a list of buffered ranges, so here is a list with a single range.
+    // iOS supports a list of buffered ranges, so here is a list with a single
+    // range.
     event.put("values", Collections.singletonList(range));
     eventSink.success(event);
   }
@@ -268,6 +275,98 @@ final class VideoPlayer {
     exoPlayer.setAudioAttributes(
         new AudioAttributes.Builder().setContentType(C.AUDIO_CONTENT_TYPE_MOVIE).build(),
         !isMixMode);
+  }
+
+  void setupNotification(Context context) {
+    playerNotificationManager = new PlayerNotificationManager.Builder(context,
+        NOTIFICATION_ID,
+        NOTIFICATION_CHANNEL)
+        .setMediaDescriptionAdapter(createMediaDescriptionAdapter(context))
+        .build();
+
+    playerNotificationManager.setPlayer(exoPlayer);
+    playerNotificationManager.setUseNextAction(false);
+    playerNotificationManager.setUsePreviousAction(false);
+    playerNotificationManager.setUseStopAction(false);
+  }
+
+  private MediaDescriptionAdapter createMediaDescriptionAdapter(Context context) {
+    return new MediaDescriptionAdapter() {
+      @Override
+      public String getCurrentContentTitle(Player player) {
+        return "番組名";
+        // return title;
+      }
+
+      @Override
+      public String getCurrentContentText(Player player) {
+        return "チャンネル名";
+        // return author;
+      }
+
+      @Override
+      public PendingIntent createCurrentContentIntent(Player player) {
+        final String packageName = context.getApplicationContext().getPackageName();
+        Intent notificationIntent = new Intent();
+        notificationIntent.setClassName(packageName, packageName + ".MainActivity");
+        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        return PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+      }
+
+      @Override
+      public Bitmap getCurrentLargeIcon(Player player, PlayerNotificationManager.BitmapCallback callback) {
+        return null;
+
+        // OneTimeWorkRequest imageWorkRequest = new
+        // OneTimeWorkRequest.Builder(ImageWorker.class)
+        // .addTag(imageUrl)
+        // .setInputData(
+        // new Data.Builder()
+        // .putString(BetterPlayerPlugin.URL_PARAMETER, imageUrl)
+        // .build())
+        // .build();
+
+        // workManager.enqueue(imageWorkRequest);
+
+        // Observer<WorkInfo> workInfoObserver = workInfo -> {
+        // try {
+        // if (workInfo != null) {
+        // WorkInfo.State state = workInfo.getState();
+        // if (state == WorkInfo.State.SUCCEEDED) {
+
+        // Data outputData = workInfo.getOutputData();
+        // String filePath =
+        // outputData.getString(BetterPlayerPlugin.FILE_PATH_PARAMETER);
+        // // Bitmap here is already processed and it's very small, so it won't
+        // // break anything.
+        // bitmap = BitmapFactory.decodeFile(filePath);
+        // callback.onBitmap(bitmap);
+
+        // }
+        // if (state == WorkInfo.State.SUCCEEDED
+        // || state == WorkInfo.State.CANCELLED
+        // || state == WorkInfo.State.FAILED) {
+        // final UUID uuid = imageWorkRequest.getId();
+        // Observer<WorkInfo> observer = workerObserverMap.remove(uuid);
+        // if (observer != null) {
+        // workManager.getWorkInfoByIdLiveData(uuid).removeObserver(observer);
+        // }
+        // }
+        // }
+
+        // } catch (Exception exception) {
+        // Log.e(TAG, "Image select error: " + exception);
+        // }
+        // };
+
+        // final UUID workerUuid = imageWorkRequest.getId();
+        // workManager.getWorkInfoByIdLiveData(workerUuid)
+        // .observeForever(workInfoObserver);
+        // workerObserverMap.put(workerUuid, workInfoObserver);
+
+        // return null;
+      }
+    };
   }
 
   void play() {
@@ -288,7 +387,8 @@ final class VideoPlayer {
   }
 
   void setPlaybackSpeed(double value) {
-    // We do not need to consider pitch and skipSilence for now as we do not handle them and
+    // We do not need to consider pitch and skipSilence for now as we do not handle
+    // them and
     // therefore never diverge from the default values.
     final PlaybackParameters playbackParameters = new PlaybackParameters(((float) value));
 
@@ -306,7 +406,8 @@ final class VideoPlayer {
   void replaceDataSource(String newDataSource, Map<String, String> headers) {
     httpHeaders = headers;
 
-    if (newDataSource.equals(dataSource)) return;
+    if (newDataSource.equals(dataSource))
+      return;
 
     dataSource = newDataSource;
     MediaSource mediaSource = buildMediaSource(Uri.parse(newDataSource), resolvingDataSourceFactory, formatHint);
@@ -337,9 +438,11 @@ final class VideoPlayer {
         event.put("width", width);
         event.put("height", height);
 
-        // Rotating the video with ExoPlayer does not seem to be possible with a Surface,
+        // Rotating the video with ExoPlayer does not seem to be possible with a
+        // Surface,
         // so inform the Flutter code that the widget needs to be rotated to prevent
-        // upside-down playback for videos with rotationDegrees of 180 (other orientations work
+        // upside-down playback for videos with rotationDegrees of 180 (other
+        // orientations work
         // correctly without correction).
         if (rotationDegrees == 180) {
           event.put("rotationCorrection", rotationDegrees);
@@ -351,6 +454,13 @@ final class VideoPlayer {
   }
 
   void dispose() {
+    // まずMediaSessionを止める
+    // TODO: impl
+    // 次にNotificationも止める
+    if (playerNotificationManager != null) {
+      playerNotificationManager.setPlayer(null);
+    }
+
     if (isInitialized) {
       exoPlayer.stop();
     }
