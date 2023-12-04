@@ -277,11 +277,17 @@ final class VideoPlayer {
         !isMixMode);
   }
 
-  void setupNotification(Context context) {
+  void setupNotification(Context context,
+      String title, String artist, Boolean isLiveStream,
+      String artworkUrl, String defaultArtworkAssetPath) {
     playerNotificationManager = new PlayerNotificationManager.Builder(context,
         NOTIFICATION_ID,
         NOTIFICATION_CHANNEL)
-        .setMediaDescriptionAdapter(createMediaDescriptionAdapter(context))
+        .setMediaDescriptionAdapter(
+            createMediaDescriptionAdapter(
+                context,
+                title, artist, isLiveStream,
+                artworkUrl, defaultArtworkAssetPath))
         .build();
 
     playerNotificationManager.setPlayer(exoPlayer);
@@ -290,18 +296,18 @@ final class VideoPlayer {
     playerNotificationManager.setUseStopAction(false);
   }
 
-  private MediaDescriptionAdapter createMediaDescriptionAdapter(Context context) {
+  private MediaDescriptionAdapter createMediaDescriptionAdapter(Context context,
+      String title, String artist, Boolean isLiveStream,
+      String artworkUrl, String defaultArtworkAssetPath) {
     return new MediaDescriptionAdapter() {
       @Override
       public String getCurrentContentTitle(Player player) {
-        return "番組名";
-        // return title;
+        return title;
       }
 
       @Override
       public String getCurrentContentText(Player player) {
-        return "チャンネル名";
-        // return author;
+        return artist;
       }
 
       @Override

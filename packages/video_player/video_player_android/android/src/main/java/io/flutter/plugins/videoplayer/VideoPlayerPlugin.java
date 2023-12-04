@@ -8,6 +8,7 @@ import android.content.Context;
 import android.os.Build;
 import android.util.LongSparseArray;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mux.stats.sdk.core.model.CustomData;
 import com.mux.stats.sdk.core.model.CustomerData;
@@ -44,6 +45,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   private final VideoPlayerOptions options = new VideoPlayerOptions();
   private String videoSource;
   private MuxStatsExoPlayer muxStatsExoPlayer;
+
+  private @NonNull String title = "";
+  private @NonNull String artist = "";
+  private @NonNull Boolean isLiveStream = false;
+  private @Nullable String artworkUrl;
+  private @Nullable String defaultArtworkAssetPath;
 
   /**
    * Register this with the v2 embedding for the plugin to respond to lifecycle
@@ -141,6 +148,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     TextureRegistry.SurfaceTextureEntry handle = flutterState.textureRegistry.createSurfaceTexture();
     EventChannel eventChannel = new EventChannel(
         flutterState.binaryMessenger, "flutter.io/videoPlayer/videoEvents" + handle.id());
+
+    title = arg.getTitle();
+    artist = arg.getArtist();
+    isLiveStream = arg.getIsLiveStream();
+    artworkUrl = arg.getArtworkUrl();
+    defaultArtworkAssetPath = arg.getDefaultArtworkAssetPath();
 
     VideoPlayer player;
     if (arg.getAsset() != null) {
@@ -272,7 +285,9 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
 
   public void play(@NonNull TextureMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
-    player.setupNotification(flutterState.applicationContext);
+    player.setupNotification(flutterState.applicationContext,
+        title, artist, isLiveStream,
+        artworkUrl, defaultArtworkAssetPath);
     player.play();
   }
 
