@@ -10,7 +10,9 @@ import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.net.Uri;
 import android.view.Surface;
 import androidx.annotation.NonNull;
@@ -45,6 +47,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.io.FileDescriptor;
 
 final class VideoPlayer {
   private static final String FORMAT_SS = "ss";
@@ -321,6 +324,14 @@ final class VideoPlayer {
 
       @Override
       public Bitmap getCurrentLargeIcon(Player player, PlayerNotificationManager.BitmapCallback callback) {
+        if (defaultArtworkAssetPath != null) {
+          try {
+            AssetFileDescriptor fd = context.getAssets().openFd(defaultArtworkAssetPath);
+            Bitmap bmp = BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor());
+          } catch (Exception exception) {
+            System.out.println("🐤🐤🐤 " + exception);
+          }
+        }
         return null;
 
         // OneTimeWorkRequest imageWorkRequest = new
