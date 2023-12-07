@@ -7,6 +7,8 @@ package io.flutter.plugins.videoplayer;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_ALL;
 import static com.google.android.exoplayer2.Player.REPEAT_MODE_OFF;
 
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -14,6 +16,10 @@ import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.net.Uri;
+import android.os.Build;
+import android.support.v4.media.MediaMetadataCompat;
+import android.support.v4.media.session.MediaSessionCompat;
+import android.support.v4.media.session.PlaybackStateCompat;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -26,6 +32,8 @@ import com.google.android.exoplayer2.PlaybackParameters;
 import com.google.android.exoplayer2.Player;
 import com.google.android.exoplayer2.Player.Listener;
 import com.google.android.exoplayer2.audio.AudioAttributes;
+import com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector;
+import static com.google.android.exoplayer2.ext.mediasession.MediaSessionConnector.MediaMetadataProvider;
 import com.google.android.exoplayer2.source.MediaSource;
 import com.google.android.exoplayer2.source.ProgressiveMediaSource;
 import com.google.android.exoplayer2.source.dash.DashMediaSource;
@@ -81,8 +89,6 @@ final class VideoPlayer {
   private String dataSource;
   private String formatHint;
   private Map<String, String> httpHeaders = new HashMap<>();
-
-  private PlayerNotificationManager playerNotificationManager;
 
   VideoPlayer(
       Context context,
@@ -280,25 +286,117 @@ final class VideoPlayer {
         !isMixMode);
   }
 
+  /// Notification
+
+  private Boolean initialized = false;
+
+  private PlayerNotificationManager playerNotificationManager;
+
   void setupNotification(Context context,
       String title, String artist, Boolean isLiveStream,
       String artworkUrl, String defaultArtworkAssetPath) {
-    playerNotificationManager = new PlayerNotificationManager.Builder(context,
+    if (initialized)
+      return;
+
+    setupNotificationChannel(context);
+
+    PlayerNotificationManager.Builder playerNotificationManagerBuilder = new PlayerNotificationManager.Builder(context,
         NOTIFICATION_ID,
-        NOTIFICATION_CHANNEL)
-        .setMediaDescriptionAdapter(
-            createMediaDescriptionAdapter(
-                context,
-                title, artist, isLiveStream,
-                artworkUrl, defaultArtworkAssetPath))
-        .build();
+        NOTIFICATION_CHANNEL);
+    // Android 10 では MediaMetadata が参照されないので、Notification にメタデータを設定する
+    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
+      playerNotificationManagerBuilder.setMediaDescriptionAdapter(
+          createMediaDescriptionAdapter(
+              context,
+              title, artist, isLiveStream,
+              artworkUrl, defaultArtworkAssetPath));
+    }
+    playerNotificationManager = playerNotificationManagerBuilder.build();
 
     playerNotificationManager.setPlayer(exoPlayer);
+
+    // For Android 10
+    // Android 11 以降はMediaSession側の設定が優先される
+    playerNotificationManager.setUseFastForwardAction(false);
+    playerNotificationManager.setUseRewindAction(false);
     playerNotificationManager.setUseNextAction(false);
     playerNotificationManager.setUsePreviousAction(false);
     playerNotificationManager.setUseStopAction(false);
+
+    setupMediaSession(context, createMediaMetadataProvider(
+        context,
+        title, artist, isLiveStream,
+        artworkUrl, defaultArtworkAssetPath));
+
+    playerNotificationManager.setMediaSessionToken(mediaSession.getSessionToken());
+    System.out.println("🐤🐤🐤");
+
+    initialized = true;
   }
 
+  private void setupNotificationChannel(Context context) {
+    NotificationChannel channel = new NotificationChannel(
+        NOTIFICATION_CHANNEL,
+        NOTIFICATION_CHANNEL,
+        NotificationManager.IMPORTANCE_LOW);
+    channel.setDescription(NOTIFICATION_CHANNEL);
+    NotificationManager notificationManager = context.getSystemService(NotificationManager.class);
+    notificationManager.createNotificationChannel(channel);
+  }
+
+  private MediaSessionCompat mediaSession;
+
+  private MediaSessionCompat setupMediaSession(Context context, MediaMetadataProvider provider) {
+    if (this.mediaSession != null)
+      this.mediaSession.release();
+
+    PendingIntent pendingIntent = PendingIntent.getBroadcast(
+        context,
+        0,
+        new Intent(Intent.ACTION_MEDIA_BUTTON),
+        PendingIntent.FLAG_IMMUTABLE);
+
+    MediaSessionCompat mediaSession = new MediaSessionCompat(context,
+        "VideoPlayer",
+        null,
+        pendingIntent);
+
+    mediaSession.setActive(true);
+    MediaSessionConnector mediaSessionConnector = new MediaSessionConnector(mediaSession);
+    mediaSessionConnector.setEnabledPlaybackActions(
+        PlaybackStateCompat.ACTION_PLAY_PAUSE
+            | PlaybackStateCompat.ACTION_PLAY
+            | PlaybackStateCompat.ACTION_PAUSE);
+    mediaSessionConnector.setPlayer(exoPlayer);
+    mediaSessionConnector.setMediaMetadataProvider(provider);
+
+    this.mediaSession = mediaSession;
+    return mediaSession;
+  }
+
+  // Metadata for Android >= 11
+  private MediaMetadataProvider createMediaMetadataProvider(Context context,
+      String title, String artist, Boolean isLiveStream,
+      String artworkUrl, String defaultArtworkAssetPath) {
+    return new MediaMetadataProvider() {
+      @Override
+      public MediaMetadataCompat getMetadata​(Player player) {
+        MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
+            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
+            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, artworkUrl);
+
+        if (!isLiveStream) {
+          builder
+              .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, exoPlayer.getDuration());
+        }
+
+        return builder.build();
+      }
+    };
+  }
+
+  // Metadata for Android 10
   private MediaDescriptionAdapter createMediaDescriptionAdapter(Context context,
       String title, String artist, Boolean isLiveStream,
       String artworkUrl, String defaultArtworkAssetPath) {
@@ -315,15 +413,13 @@ final class VideoPlayer {
 
       @Override
       public PendingIntent createCurrentContentIntent(Player player) {
-        final String packageName = context.getApplicationContext().getPackageName();
-        Intent notificationIntent = new Intent();
-        notificationIntent.setClassName(packageName, packageName + ".MainActivity");
-        notificationIntent.setFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
-        return PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
+        return PendingIntent.getActivity(context, 0, new Intent(Intent.ACTION_MEDIA_BUTTON),
+            PendingIntent.FLAG_IMMUTABLE);
       }
 
       @Override
       public Bitmap getCurrentLargeIcon(Player player, PlayerNotificationManager.BitmapCallback callback) {
+
         if (defaultArtworkAssetPath != null) {
           try {
             AssetFileDescriptor fd = context.getAssets().openFd(defaultArtworkAssetPath);
@@ -385,6 +481,8 @@ final class VideoPlayer {
       }
     };
   }
+
+  ///
 
   void play() {
     exoPlayer.setPlayWhenReady(true);
@@ -471,9 +569,11 @@ final class VideoPlayer {
   }
 
   void dispose() {
-    // まずMediaSessionを止める
-    // TODO: impl
-    // 次にNotificationも止める
+    if (mediaSession != null) {
+      mediaSession.release();
+    }
+    mediaSession = null;
+
     if (playerNotificationManager != null) {
       playerNotificationManager.setPlayer(null);
     }
