@@ -55,7 +55,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.io.FileDescriptor;
+import java.io.InputStream;
 
 final class VideoPlayer {
   private static final String FORMAT_SS = "ss";
@@ -329,7 +329,6 @@ final class VideoPlayer {
         artworkUrl, defaultArtworkAssetPath));
 
     playerNotificationManager.setMediaSessionToken(mediaSession.getSessionToken());
-    System.out.println("🐤🐤🐤");
 
     initialized = true;
   }
@@ -383,8 +382,19 @@ final class VideoPlayer {
       public MediaMetadataCompat getMetadata​(Player player) {
         MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
             .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist)
-            .putString(MediaMetadataCompat.METADATA_KEY_ALBUM_ART_URI, artworkUrl);
+            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
+
+        Bitmap bmp = null;
+        try {
+          InputStream stream = context.getAssets().open(defaultArtworkAssetPath);
+          bmp = BitmapFactory.decodeStream(stream);
+        } catch (Exception exception) {
+          System.out.println("🐤🐤🐤 " + exception);
+        }
+        System.out.println("🐤🐤🐤 < " + (bmp != null ? "👍" : "👎"));
+        if (bmp != null) {
+          builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bmp);
+        }
 
         if (!isLiveStream) {
           builder
@@ -419,11 +429,10 @@ final class VideoPlayer {
 
       @Override
       public Bitmap getCurrentLargeIcon(Player player, PlayerNotificationManager.BitmapCallback callback) {
-
         if (defaultArtworkAssetPath != null) {
           try {
-            AssetFileDescriptor fd = context.getAssets().openFd(defaultArtworkAssetPath);
-            Bitmap bmp = BitmapFactory.decodeFileDescriptor(fd.getFileDescriptor());
+            InputStream stream = context.getAssets().open(defaultArtworkAssetPath);
+            return BitmapFactory.decodeStream(stream);
           } catch (Exception exception) {
             System.out.println("🐤🐤🐤 " + exception);
           }
