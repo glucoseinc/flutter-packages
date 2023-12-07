@@ -15,11 +15,13 @@ import android.content.Intent;
 import android.content.res.AssetFileDescriptor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.drawable.Drawable;
 import android.net.Uri;
 import android.os.Build;
 import android.support.v4.media.MediaMetadataCompat;
 import android.support.v4.media.session.MediaSessionCompat;
 import android.support.v4.media.session.PlaybackStateCompat;
+import android.util.Log;
 import android.view.Surface;
 import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
@@ -57,7 +59,12 @@ import java.util.List;
 import java.util.Map;
 import java.io.InputStream;
 
+import com.squareup.picasso.Picasso;
+import com.squareup.picasso.Target;
+
 final class VideoPlayer {
+  private static final String TAG = "VideoPlayer";
+
   private static final String FORMAT_SS = "ss";
   private static final String FORMAT_DASH = "dash";
   private static final String FORMAT_HLS = "hls";
@@ -300,33 +307,25 @@ final class VideoPlayer {
 
     setupNotificationChannel(context);
 
-    PlayerNotificationManager.Builder playerNotificationManagerBuilder = new PlayerNotificationManager.Builder(context,
+    playerNotificationManager = new PlayerNotificationManager.Builder(context,
         NOTIFICATION_ID,
-        NOTIFICATION_CHANNEL);
-    // Android 10 では MediaMetadata が参照されないので、Notification にメタデータを設定する
-    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.Q) {
-      playerNotificationManagerBuilder.setMediaDescriptionAdapter(
-          createMediaDescriptionAdapter(
-              context,
-              title, artist, isLiveStream,
-              artworkUrl, defaultArtworkAssetPath));
-    }
-    playerNotificationManager = playerNotificationManagerBuilder.build();
+        NOTIFICATION_CHANNEL)
+        .setMediaDescriptionAdapter(
+            createMediaDescriptionAdapter(
+                context,
+                title, artist, isLiveStream,
+                artworkUrl, defaultArtworkAssetPath))
+        .build();
 
     playerNotificationManager.setPlayer(exoPlayer);
 
-    // For Android 10
-    // Android 11 以降はMediaSession側の設定が優先される
     playerNotificationManager.setUseFastForwardAction(false);
     playerNotificationManager.setUseRewindAction(false);
     playerNotificationManager.setUseNextAction(false);
     playerNotificationManager.setUsePreviousAction(false);
     playerNotificationManager.setUseStopAction(false);
 
-    setupMediaSession(context, createMediaMetadataProvider(
-        context,
-        title, artist, isLiveStream,
-        artworkUrl, defaultArtworkAssetPath));
+    setupMediaSession(context);
 
     playerNotificationManager.setMediaSessionToken(mediaSession.getSessionToken());
 
@@ -345,7 +344,7 @@ final class VideoPlayer {
 
   private MediaSessionCompat mediaSession;
 
-  private MediaSessionCompat setupMediaSession(Context context, MediaMetadataProvider provider) {
+  private MediaSessionCompat setupMediaSession(Context context) {
     if (this.mediaSession != null)
       this.mediaSession.release();
 
@@ -367,46 +366,16 @@ final class VideoPlayer {
             | PlaybackStateCompat.ACTION_PLAY
             | PlaybackStateCompat.ACTION_PAUSE);
     mediaSessionConnector.setPlayer(exoPlayer);
-    mediaSessionConnector.setMediaMetadataProvider(provider);
 
     this.mediaSession = mediaSession;
     return mediaSession;
   }
 
-  // Metadata for Android >= 11
-  private MediaMetadataProvider createMediaMetadataProvider(Context context,
-      String title, String artist, Boolean isLiveStream,
-      String artworkUrl, String defaultArtworkAssetPath) {
-    return new MediaMetadataProvider() {
-      @Override
-      public MediaMetadataCompat getMetadata​(Player player) {
-        MediaMetadataCompat.Builder builder = new MediaMetadataCompat.Builder()
-            .putString(MediaMetadataCompat.METADATA_KEY_DISPLAY_TITLE, title)
-            .putString(MediaMetadataCompat.METADATA_KEY_ARTIST, artist);
+  // Picassoは渡されたTargetを弱参照で扱うので、保持しておかないとGCされてしまうことがある
+  private Target _targetRef;
 
-        Bitmap bmp = null;
-        try {
-          InputStream stream = context.getAssets().open(defaultArtworkAssetPath);
-          bmp = BitmapFactory.decodeStream(stream);
-        } catch (Exception exception) {
-          System.out.println("🐤🐤🐤 " + exception);
-        }
-        System.out.println("🐤🐤🐤 < " + (bmp != null ? "👍" : "👎"));
-        if (bmp != null) {
-          builder.putBitmap(MediaMetadataCompat.METADATA_KEY_ALBUM_ART, bmp);
-        }
-
-        if (!isLiveStream) {
-          builder
-              .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, exoPlayer.getDuration());
-        }
-
-        return builder.build();
-      }
-    };
-  }
-
-  // Metadata for Android 10
+  // Android 11以降はMediaSessionにMediaMetadataを設定する方法もあるが、
+  // Android 10には反映されないのと、動的にArtworkを差し替えるのが難しいので、MediaDescriptionAdapterを使う
   private MediaDescriptionAdapter createMediaDescriptionAdapter(Context context,
       String title, String artist, Boolean isLiveStream,
       String artworkUrl, String defaultArtworkAssetPath) {
@@ -427,66 +396,48 @@ final class VideoPlayer {
             PendingIntent.FLAG_IMMUTABLE);
       }
 
+      private Bitmap _bmp;
+
       @Override
       public Bitmap getCurrentLargeIcon(Player player, PlayerNotificationManager.BitmapCallback callback) {
-        if (defaultArtworkAssetPath != null) {
+        // LiveStreamの場合は頻繁に呼ばれるのでキャッシュしておく
+        if (_bmp != null)
+          return _bmp;
+
+        if (defaultArtworkAssetPath != null && !defaultArtworkAssetPath.isBlank()) {
           try {
             InputStream stream = context.getAssets().open(defaultArtworkAssetPath);
-            return BitmapFactory.decodeStream(stream);
+            _bmp = BitmapFactory.decodeStream(stream);
           } catch (Exception exception) {
-            System.out.println("🐤🐤🐤 " + exception);
+            Log.e(TAG, exception.toString());
           }
         }
-        return null;
 
-        // OneTimeWorkRequest imageWorkRequest = new
-        // OneTimeWorkRequest.Builder(ImageWorker.class)
-        // .addTag(imageUrl)
-        // .setInputData(
-        // new Data.Builder()
-        // .putString(BetterPlayerPlugin.URL_PARAMETER, imageUrl)
-        // .build())
-        // .build();
+        if (artworkUrl != null && !artworkUrl.isBlank()) {
+          _targetRef = new Target() {
+            @Override
+            public void onBitmapLoaded(Bitmap bitmap, Picasso.LoadedFrom from) {
+              if (bitmap != null) {
+                _bmp = bitmap;
+                callback.onBitmap(bitmap);
+              }
 
-        // workManager.enqueue(imageWorkRequest);
+              _targetRef = null;
+            }
 
-        // Observer<WorkInfo> workInfoObserver = workInfo -> {
-        // try {
-        // if (workInfo != null) {
-        // WorkInfo.State state = workInfo.getState();
-        // if (state == WorkInfo.State.SUCCEEDED) {
+            @Override
+            public void onBitmapFailed(Exception e, Drawable errorDrawable) {
+            }
 
-        // Data outputData = workInfo.getOutputData();
-        // String filePath =
-        // outputData.getString(BetterPlayerPlugin.FILE_PATH_PARAMETER);
-        // // Bitmap here is already processed and it's very small, so it won't
-        // // break anything.
-        // bitmap = BitmapFactory.decodeFile(filePath);
-        // callback.onBitmap(bitmap);
+            @Override
+            public void onPrepareLoad(Drawable placeHolderDrawable) {
+            }
+          };
+          Picasso.get().load(artworkUrl).into(_targetRef);
 
-        // }
-        // if (state == WorkInfo.State.SUCCEEDED
-        // || state == WorkInfo.State.CANCELLED
-        // || state == WorkInfo.State.FAILED) {
-        // final UUID uuid = imageWorkRequest.getId();
-        // Observer<WorkInfo> observer = workerObserverMap.remove(uuid);
-        // if (observer != null) {
-        // workManager.getWorkInfoByIdLiveData(uuid).removeObserver(observer);
-        // }
-        // }
-        // }
+        }
 
-        // } catch (Exception exception) {
-        // Log.e(TAG, "Image select error: " + exception);
-        // }
-        // };
-
-        // final UUID workerUuid = imageWorkRequest.getId();
-        // workManager.getWorkInfoByIdLiveData(workerUuid)
-        // .observeForever(workInfoObserver);
-        // workerObserverMap.put(workerUuid, workInfoObserver);
-
-        // return null;
+        return _bmp;
       }
     };
   }
