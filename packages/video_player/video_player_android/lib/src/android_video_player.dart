@@ -61,6 +61,11 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
       uri: uri,
       httpHeaders: httpHeaders,
       formatHint: formatHint,
+      title: dataSource.mediaInfo?.title ?? '',
+      artist: dataSource.mediaInfo?.artist ?? '',
+      artworkUrl: dataSource.mediaInfo?.artworkUrl,
+      defaultArtworkAssetPath: dataSource.mediaInfo?.defaultArtworkAssetPath,
+      isLiveStream: dataSource.isLiveStream,
     );
 
     final TextureMessage response = await _api.create(message);

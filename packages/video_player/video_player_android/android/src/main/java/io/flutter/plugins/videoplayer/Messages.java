@@ -456,6 +456,65 @@ public class Messages {
       this.httpHeaders = setterArg;
     }
 
+    private @NonNull String title;
+
+    public @NonNull String getTitle() {
+      return title;
+    }
+
+    public void setTitle(@NonNull String setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"title\" is null.");
+      }
+      this.title = setterArg;
+    }
+
+    private @NonNull String artist;
+
+    public @NonNull String getArtist() {
+      return artist;
+    }
+
+    public void setArtist(@NonNull String setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"artist\" is null.");
+      }
+      this.artist = setterArg;
+    }
+
+    private @Nullable String artworkUrl;
+
+    public @Nullable String getArtworkUrl() {
+      return artworkUrl;
+    }
+
+    public void setArtworkUrl(@Nullable String setterArg) {
+      this.artworkUrl = setterArg;
+    }
+
+    private @Nullable String defaultArtworkAssetPath;
+
+    public @Nullable String getDefaultArtworkAssetPath() {
+      return defaultArtworkAssetPath;
+    }
+
+    public void setDefaultArtworkAssetPath(@Nullable String setterArg) {
+      this.defaultArtworkAssetPath = setterArg;
+    }
+
+    private @NonNull Boolean isLiveStream;
+
+    public @NonNull Boolean getIsLiveStream() {
+      return isLiveStream;
+    }
+
+    public void setIsLiveStream(@NonNull Boolean setterArg) {
+      if (setterArg == null) {
+        throw new IllegalStateException("Nonnull field \"isLiveStream\" is null.");
+      }
+      this.isLiveStream = setterArg;
+    }
+
     /** Constructor is non-public to enforce null safety; use Builder. */
     CreateMessage() {}
 
@@ -496,6 +555,41 @@ public class Messages {
         return this;
       }
 
+      private @Nullable String title;
+
+      public @NonNull Builder setTitle(@NonNull String setterArg) {
+        this.title = setterArg;
+        return this;
+      }
+
+      private @Nullable String artist;
+
+      public @NonNull Builder setArtist(@NonNull String setterArg) {
+        this.artist = setterArg;
+        return this;
+      }
+
+      private @Nullable String artworkUrl;
+
+      public @NonNull Builder setArtworkUrl(@Nullable String setterArg) {
+        this.artworkUrl = setterArg;
+        return this;
+      }
+
+      private @Nullable String defaultArtworkAssetPath;
+
+      public @NonNull Builder setDefaultArtworkAssetPath(@Nullable String setterArg) {
+        this.defaultArtworkAssetPath = setterArg;
+        return this;
+      }
+
+      private @Nullable Boolean isLiveStream;
+
+      public @NonNull Builder setIsLiveStream(@NonNull Boolean setterArg) {
+        this.isLiveStream = setterArg;
+        return this;
+      }
+
       public @NonNull CreateMessage build() {
         CreateMessage pigeonReturn = new CreateMessage();
         pigeonReturn.setAsset(asset);
@@ -503,18 +597,28 @@ public class Messages {
         pigeonReturn.setPackageName(packageName);
         pigeonReturn.setFormatHint(formatHint);
         pigeonReturn.setHttpHeaders(httpHeaders);
+        pigeonReturn.setTitle(title);
+        pigeonReturn.setArtist(artist);
+        pigeonReturn.setArtworkUrl(artworkUrl);
+        pigeonReturn.setDefaultArtworkAssetPath(defaultArtworkAssetPath);
+        pigeonReturn.setIsLiveStream(isLiveStream);
         return pigeonReturn;
       }
     }
 
     @NonNull
     ArrayList<Object> toList() {
-      ArrayList<Object> toListResult = new ArrayList<Object>(5);
+      ArrayList<Object> toListResult = new ArrayList<Object>(10);
       toListResult.add(asset);
       toListResult.add(uri);
       toListResult.add(packageName);
       toListResult.add(formatHint);
       toListResult.add(httpHeaders);
+      toListResult.add(title);
+      toListResult.add(artist);
+      toListResult.add(artworkUrl);
+      toListResult.add(defaultArtworkAssetPath);
+      toListResult.add(isLiveStream);
       return toListResult;
     }
 
@@ -530,6 +634,16 @@ public class Messages {
       pigeonResult.setFormatHint((String) formatHint);
       Object httpHeaders = list.get(4);
       pigeonResult.setHttpHeaders((Map<String, String>) httpHeaders);
+      Object title = list.get(5);
+      pigeonResult.setTitle((String) title);
+      Object artist = list.get(6);
+      pigeonResult.setArtist((String) artist);
+      Object artworkUrl = list.get(7);
+      pigeonResult.setArtworkUrl((String) artworkUrl);
+      Object defaultArtworkAssetPath = list.get(8);
+      pigeonResult.setDefaultArtworkAssetPath((String) defaultArtworkAssetPath);
+      Object isLiveStream = list.get(9);
+      pigeonResult.setIsLiveStream((Boolean) isLiveStream);
       return pigeonResult;
     }
   }

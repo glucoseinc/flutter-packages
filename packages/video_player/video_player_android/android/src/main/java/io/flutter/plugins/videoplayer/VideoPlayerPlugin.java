@@ -8,6 +8,7 @@ import android.content.Context;
 import android.os.Build;
 import android.util.LongSparseArray;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.mux.stats.sdk.core.model.CustomData;
 import com.mux.stats.sdk.core.model.CustomerData;
@@ -45,22 +46,34 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   private String videoSource;
   private MuxStatsExoPlayer muxStatsExoPlayer;
 
-  /** Register this with the v2 embedding for the plugin to respond to lifecycle callbacks. */
-  public VideoPlayerPlugin() {}
+  private @NonNull String title = "";
+  private @NonNull String artist = "";
+  private @NonNull Boolean isLiveStream = false;
+  private @Nullable String artworkUrl;
+  private @Nullable String defaultArtworkAssetPath;
+
+  /**
+   * Register this with the v2 embedding for the plugin to respond to lifecycle
+   * callbacks.
+   */
+  public VideoPlayerPlugin() {
+  }
 
   @SuppressWarnings("deprecation")
   private VideoPlayerPlugin(io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
-    this.flutterState =
-        new FlutterState(
-            registrar.context(),
-            registrar.messenger(),
-            registrar::lookupKeyForAsset,
-            registrar::lookupKeyForAsset,
-            registrar.textures());
+    this.flutterState = new FlutterState(
+        registrar.context(),
+        registrar.messenger(),
+        registrar::lookupKeyForAsset,
+        registrar::lookupKeyForAsset,
+        registrar.textures());
     flutterState.startListening(this, registrar.messenger());
   }
 
-  /** Registers this with the stable v1 embedding. Will not respond to lifecycle events. */
+  /**
+   * Registers this with the stable v1 embedding. Will not respond to lifecycle
+   * events.
+   */
   @SuppressWarnings("deprecation")
   public static void registerWith(
       @NonNull io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
@@ -88,13 +101,12 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     }
 
     final FlutterInjector injector = FlutterInjector.instance();
-    this.flutterState =
-        new FlutterState(
-            binding.getApplicationContext(),
-            binding.getBinaryMessenger(),
-            injector.flutterLoader()::getLookupKeyForAsset,
-            injector.flutterLoader()::getLookupKeyForAsset,
-            binding.getTextureRegistry());
+    this.flutterState = new FlutterState(
+        binding.getApplicationContext(),
+        binding.getBinaryMessenger(),
+        injector.flutterLoader()::getLookupKeyForAsset,
+        injector.flutterLoader()::getLookupKeyForAsset,
+        binding.getTextureRegistry());
     flutterState.startListening(this, binding.getBinaryMessenger());
   }
 
@@ -121,7 +133,8 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     }
 
     // instances
-    // of VideoPlayer. Once https://github.com/flutter/flutter/issues/19358 is resolved this may
+    // of VideoPlayer. Once https://github.com/flutter/flutter/issues/19358 is
+    // resolved this may
     // be replaced with just asserting that videoPlayers.isEmpty().
     // https://github.com/flutter/flutter/issues/20989 tracks this.
     disposeAllPlayers();
@@ -132,41 +145,44 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   }
 
   public @NonNull TextureMessage create(@NonNull CreateMessage arg) {
-    TextureRegistry.SurfaceTextureEntry handle =
-        flutterState.textureRegistry.createSurfaceTexture();
-    EventChannel eventChannel =
-        new EventChannel(
-            flutterState.binaryMessenger, "flutter.io/videoPlayer/videoEvents" + handle.id());
+    TextureRegistry.SurfaceTextureEntry handle = flutterState.textureRegistry.createSurfaceTexture();
+    EventChannel eventChannel = new EventChannel(
+        flutterState.binaryMessenger, "flutter.io/videoPlayer/videoEvents" + handle.id());
+
+    title = arg.getTitle();
+    artist = arg.getArtist();
+    isLiveStream = arg.getIsLiveStream();
+    artworkUrl = arg.getArtworkUrl();
+    defaultArtworkAssetPath = arg.getDefaultArtworkAssetPath() != null
+        ? flutterState.keyForAsset.get(arg.getDefaultArtworkAssetPath())
+        : null;
 
     VideoPlayer player;
     if (arg.getAsset() != null) {
       String assetLookupKey;
       if (arg.getPackageName() != null) {
-        assetLookupKey =
-            flutterState.keyForAssetAndPackageName.get(arg.getAsset(), arg.getPackageName());
+        assetLookupKey = flutterState.keyForAssetAndPackageName.get(arg.getAsset(), arg.getPackageName());
       } else {
         assetLookupKey = flutterState.keyForAsset.get(arg.getAsset());
       }
-      player =
-          new VideoPlayer(
-              flutterState.applicationContext,
-              eventChannel,
-              handle,
-              "asset:///" + assetLookupKey,
-              null,
-              new HashMap<>(),
-              options);
+      player = new VideoPlayer(
+          flutterState.applicationContext,
+          eventChannel,
+          handle,
+          "asset:///" + assetLookupKey,
+          null,
+          new HashMap<>(),
+          options);
     } else {
       Map<String, String> httpHeaders = arg.getHttpHeaders();
-      player =
-          new VideoPlayer(
-              flutterState.applicationContext,
-              eventChannel,
-              handle,
-              arg.getUri(),
-              arg.getFormatHint(),
-              httpHeaders,
-              options);
+      player = new VideoPlayer(
+          flutterState.applicationContext,
+          eventChannel,
+          handle,
+          arg.getUri(),
+          arg.getFormatHint(),
+          httpHeaders,
+          options);
     }
     videoPlayers.put(handle.id(), player);
 
@@ -271,16 +287,18 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
 
   public void play(@NonNull TextureMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
+    player.setupNotification(flutterState.applicationContext,
+        title, artist, isLiveStream,
+        artworkUrl, defaultArtworkAssetPath);
     player.play();
   }
 
   public @NonNull PositionMessage position(@NonNull TextureMessage arg) {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
-    PositionMessage result =
-        new PositionMessage.Builder()
-            .setPosition(player.getPosition())
-            .setTextureId(arg.getTextureId())
-            .build();
+    PositionMessage result = new PositionMessage.Builder()
+        .setPosition(player.getPosition())
+        .setTextureId(arg.getTextureId())
+        .build();
     player.sendBufferingUpdate();
     return result;
   }

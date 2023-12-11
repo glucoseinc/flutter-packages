@@ -54,10 +54,14 @@ android {
 
     dependencies {
         def exoplayer_version = "2.18.7"
+        def picasso_version = "2.8"
         implementation "com.google.android.exoplayer:exoplayer-core:${exoplayer_version}"
         implementation "com.google.android.exoplayer:exoplayer-hls:${exoplayer_version}"
         implementation "com.google.android.exoplayer:exoplayer-dash:${exoplayer_version}"
         implementation "com.google.android.exoplayer:exoplayer-smoothstreaming:${exoplayer_version}"
+        implementation "com.google.android.exoplayer:exoplayer-ui:${exoplayer_version}"
+        implementation "com.google.android.exoplayer:extension-mediasession:${exoplayer_version}"
+        implementation "com.squareup.picasso:picasso:${picasso_version}"
         testImplementation 'junit:junit:4.13.2'
         testImplementation 'androidx.test:core:1.3.0'
         testImplementation 'org.mockito:mockito-inline:5.0.0'
