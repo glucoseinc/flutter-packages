@@ -392,8 +392,14 @@ final class VideoPlayer {
 
       @Override
       public PendingIntent createCurrentContentIntent(Player player) {
-        return PendingIntent.getActivity(context, 0, new Intent(Intent.ACTION_MEDIA_BUTTON),
-            PendingIntent.FLAG_IMMUTABLE);
+        String packageName = context.getPackageName();
+        Intent notificationIntent = new Intent();
+        notificationIntent.setClassName(packageName, packageName + ".MainActivity");
+        notificationIntent.setFlags(
+          Intent.FLAG_ACTIVITY_CLEAR_TOP
+          | Intent.FLAG_ACTIVITY_SINGLE_TOP);
+
+        return PendingIntent.getActivity(context, 0, notificationIntent, PendingIntent.FLAG_IMMUTABLE);
       }
 
       private Bitmap _bmp;
