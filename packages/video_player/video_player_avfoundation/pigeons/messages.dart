@@ -91,6 +91,7 @@ class MuxConfigMessage {
   String? videoProducer;
   String? videoEncodingVariant;
   String? videoCdn;
+  String? viewerPlanStatus;
 }
 
 class AutomaticallyStartsPictureInPictureMessage {

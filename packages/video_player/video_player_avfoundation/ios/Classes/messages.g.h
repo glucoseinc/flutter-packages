@@ -124,7 +124,8 @@ NS_ASSUME_NONNULL_BEGIN
     videoStreamType:(nullable NSString *)videoStreamType
     videoProducer:(nullable NSString *)videoProducer
     videoEncodingVariant:(nullable NSString *)videoEncodingVariant
-    videoCdn:(nullable NSString *)videoCdn;
+    videoCdn:(nullable NSString *)videoCdn
+    viewerPlanStatus:(nullable NSString *)viewerPlanStatus;
 @property(nonatomic, strong, nullable) NSNumber * textureId;
 @property(nonatomic, copy, nullable) NSString * envKey;
 @property(nonatomic, copy, nullable) NSString * playerName;
@@ -146,6 +147,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property(nonatomic, copy, nullable) NSString * videoProducer;
 @property(nonatomic, copy, nullable) NSString * videoEncodingVariant;
 @property(nonatomic, copy, nullable) NSString * videoCdn;
+@property(nonatomic, copy, nullable) NSString * viewerPlanStatus;
 @end
 
 @interface FLTAutomaticallyStartsPictureInPictureMessage : NSObject

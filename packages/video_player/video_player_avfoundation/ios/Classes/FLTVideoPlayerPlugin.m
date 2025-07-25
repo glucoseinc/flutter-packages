@@ -839,10 +839,22 @@ NSNumber *_isLiveStream;
   // videoData.videoEncodingVariant = input.videoEncodingVariant;
   // videoData.videoCdn = input.videoCdn;
 
+  MUXSDKCustomerViewerData* viewerData = [MUXSDKCustomerViewerData new];
+  viewerData.viewerPlanStatus = input.viewerPlanStatus; // 視聴プラン OneTimePlan or SubscriptionPlan
+
+  // MUXSDKCustomerData* customerData = [MUXSDKCustomerData new];
+  // customerData.customerPlayerData = playerData;
+  // customerData.customerVideoData = videoData;
+  // customerData.customerViewerData = viewerData;
+  MUXSDKCustomerData *customerData = [[MUXSDKCustomerData alloc] initWithCustomerPlayerData:playerData
+                                                                                videoData:videoData
+                                                                                 viewData:nil
+                                                                               customData:nil
+                                                                               viewerData:viewerData];
+
   [MUXSDKStats monitorAVPlayerViewController:playerViewController
     withPlayerName:input.playerName
-    playerData:playerData
-    videoData:videoData
+    customerData:customerData
   ];
 }
 
