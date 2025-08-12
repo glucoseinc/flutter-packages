@@ -18,7 +18,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.drawable.Drawable;
 import android.net.Uri;
-import android.os.Build;;
+import android.os.Build;
 import androidx.media3.session.MediaSession;
 import android.util.Log;
 import android.view.Surface;

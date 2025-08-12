@@ -264,7 +264,6 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
       videoData.setVideoDuration(castVideoDuration(arg.getVideoDuration()));
     }
 
-    System.out.println("viewer_plan_status: " + arg.getViewerPlanStatus());
     if (arg.getViewerPlanStatus() != null) {
       viewerData.setViewerPlanStatus(arg.getViewerPlanStatus());
     }
