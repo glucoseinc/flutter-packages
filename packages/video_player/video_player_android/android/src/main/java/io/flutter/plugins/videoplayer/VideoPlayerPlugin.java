@@ -256,10 +256,6 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     if (arg.getVideoEncodingVariant() != null)
       videoData.setVideoEncodingVariant(arg.getVideoEncodingVariant());
 
-    // deprecatedになったが、iOS版との統一のために残しておく
-    // if (arg.getVideoCdn() != null)
-    //   videoData.setVideoCdn(arg.getVideoCdn());
-
     if (arg.getVideoDuration() != null) {
       videoData.setVideoDuration(castVideoDuration(arg.getVideoDuration()));
     }
