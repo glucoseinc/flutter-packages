@@ -1084,6 +1084,16 @@ public class Messages {
       this.videoCdn = setterArg;
     }
 
+    private @Nullable String viewerPlanStatus;
+
+    public @Nullable String getViewerPlanStatus() {
+      return viewerPlanStatus;
+    }
+
+    public void setViewerPlanStatus(@Nullable String setterArg) {
+      this.viewerPlanStatus = setterArg;
+    }
+
     public static final class Builder {
 
       private @Nullable Long textureId;
@@ -1233,6 +1243,13 @@ public class Messages {
         return this;
       }
 
+      private @Nullable String viewerPlanStatus;
+
+      public @NonNull Builder setViewerPlanStatus(@Nullable String setterArg) {
+        this.viewerPlanStatus = setterArg;
+        return this;
+      }
+
       public @NonNull MuxConfigMessage build() {
         MuxConfigMessage pigeonReturn = new MuxConfigMessage();
         pigeonReturn.setTextureId(textureId);
@@ -1256,6 +1273,7 @@ public class Messages {
         pigeonReturn.setVideoProducer(videoProducer);
         pigeonReturn.setVideoEncodingVariant(videoEncodingVariant);
         pigeonReturn.setVideoCdn(videoCdn);
+        pigeonReturn.setViewerPlanStatus(viewerPlanStatus);
         return pigeonReturn;
       }
     }
@@ -1284,6 +1302,7 @@ public class Messages {
       toListResult.add(videoProducer);
       toListResult.add(videoEncodingVariant);
       toListResult.add(videoCdn);
+      toListResult.add(viewerPlanStatus);
       return toListResult;
     }
 
@@ -1331,6 +1350,8 @@ public class Messages {
       pigeonResult.setVideoEncodingVariant((String) videoEncodingVariant);
       Object videoCdn = list.get(20);
       pigeonResult.setVideoCdn((String) videoCdn);
+      Object viewerPlanStatus = list.get(21);
+      pigeonResult.setViewerPlanStatus((String) viewerPlanStatus);
       return pigeonResult;
     }
   }

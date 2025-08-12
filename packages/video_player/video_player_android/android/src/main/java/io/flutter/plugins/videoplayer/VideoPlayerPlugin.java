@@ -15,6 +15,7 @@ import com.mux.stats.sdk.core.model.CustomData;
 import com.mux.stats.sdk.core.model.CustomerData;
 import com.mux.stats.sdk.core.model.CustomerPlayerData;
 import com.mux.stats.sdk.core.model.CustomerVideoData;
+import com.mux.stats.sdk.core.model.CustomerViewerData;
 import com.mux.stats.sdk.muxstats.MuxStatsSdkMedia3;
 import com.mux.stats.sdk.muxstats.ExoPlayerBinding;
 import io.flutter.FlutterInjector;
@@ -198,6 +199,7 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     VideoPlayer player = videoPlayers.get(arg.getTextureId());
     CustomerPlayerData playerData = new CustomerPlayerData();
     CustomerVideoData videoData = new CustomerVideoData();
+    CustomerViewerData viewerData = new CustomerViewerData();
     CustomData customData = new CustomData();
 
     CustomerData customerData = new CustomerData();
@@ -254,12 +256,22 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
     if (arg.getVideoEncodingVariant() != null)
       videoData.setVideoEncodingVariant(arg.getVideoEncodingVariant());
 
+    // deprecatedになったが、iOS版との統一のために残しておく
+    // if (arg.getVideoCdn() != null)
+    //   videoData.setVideoCdn(arg.getVideoCdn());
+
     if (arg.getVideoDuration() != null) {
       videoData.setVideoDuration(castVideoDuration(arg.getVideoDuration()));
     }
 
+    System.out.println("viewer_plan_status: " + arg.getViewerPlanStatus());
+    if (arg.getViewerPlanStatus() != null) {
+      viewerData.setViewerPlanStatus(arg.getViewerPlanStatus());
+    }
+
     customerData.setCustomerVideoData(videoData);
     customerData.setCustomerPlayerData(playerData);
+    customerData.setCustomerViewerData(viewerData);
     customerData.setCustomData(customData);
 
     muxStats = new MuxStatsSdkMedia3<ExoPlayer>(

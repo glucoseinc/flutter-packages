@@ -292,6 +292,7 @@ class MuxConfigMessage {
     this.videoProducer,
     this.videoEncodingVariant,
     this.videoCdn,
+    this.viewerPlanStatus,
   });
 
   int? textureId;
@@ -336,6 +337,8 @@ class MuxConfigMessage {
 
   String? videoCdn;
 
+  String? viewerPlanStatus;
+
   Object encode() {
     return <Object?>[
       textureId,
@@ -359,6 +362,7 @@ class MuxConfigMessage {
       videoProducer,
       videoEncodingVariant,
       videoCdn,
+      viewerPlanStatus,
     ];
   }
 
@@ -386,6 +390,7 @@ class MuxConfigMessage {
       videoProducer: result[18] as String?,
       videoEncodingVariant: result[19] as String?,
       videoCdn: result[20] as String?,
+      viewerPlanStatus: result[21] as String?,
     );
   }
 }
