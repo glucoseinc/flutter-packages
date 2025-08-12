@@ -53,7 +53,6 @@ class AndroidVideoPlayer extends VideoPlayerPlatform {
         break;
       case DataSourceType.contentUri:
         uri = dataSource.uri;
-        break;
     }
     final CreateMessage message = CreateMessage(
       asset: asset,

@@ -104,7 +104,10 @@ public class Messages {
     static @NonNull TextureMessage fromList(@NonNull ArrayList<Object> list) {
       TextureMessage pigeonResult = new TextureMessage();
       Object textureId = list.get(0);
-      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
+      pigeonResult.setTextureId(
+          (textureId == null)
+              ? null
+              : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
       return pigeonResult;
     }
   }
@@ -175,7 +178,10 @@ public class Messages {
     static @NonNull LoopingMessage fromList(@NonNull ArrayList<Object> list) {
       LoopingMessage pigeonResult = new LoopingMessage();
       Object textureId = list.get(0);
-      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
+      pigeonResult.setTextureId(
+          (textureId == null)
+              ? null
+              : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
       Object isLooping = list.get(1);
       pigeonResult.setIsLooping((Boolean) isLooping);
       return pigeonResult;
@@ -248,7 +254,10 @@ public class Messages {
     static @NonNull VolumeMessage fromList(@NonNull ArrayList<Object> list) {
       VolumeMessage pigeonResult = new VolumeMessage();
       Object textureId = list.get(0);
-      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
+      pigeonResult.setTextureId(
+          (textureId == null)
+              ? null
+              : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
       Object volume = list.get(1);
       pigeonResult.setVolume((Double) volume);
       return pigeonResult;
@@ -321,7 +330,10 @@ public class Messages {
     static @NonNull PlaybackSpeedMessage fromList(@NonNull ArrayList<Object> list) {
       PlaybackSpeedMessage pigeonResult = new PlaybackSpeedMessage();
       Object textureId = list.get(0);
-      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
+      pigeonResult.setTextureId(
+          (textureId == null)
+              ? null
+              : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
       Object speed = list.get(1);
       pigeonResult.setSpeed((Double) speed);
       return pigeonResult;
@@ -394,9 +406,15 @@ public class Messages {
     static @NonNull PositionMessage fromList(@NonNull ArrayList<Object> list) {
       PositionMessage pigeonResult = new PositionMessage();
       Object textureId = list.get(0);
-      pigeonResult.setTextureId((textureId == null) ? null : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
+      pigeonResult.setTextureId(
+          (textureId == null)
+              ? null
+              : ((textureId instanceof Integer) ? (Integer) textureId : (Long) textureId));
       Object position = list.get(1);
-      pigeonResult.setPosition((position == null) ? null : ((position instanceof Integer) ? (Integer) position : (Long) position));
+      pigeonResult.setPosition(
+          (position == null)
+              ? null
+              : ((position instanceof Integer) ? (Integer) position : (Long) position));
       return pigeonResult;
     }
   }
@@ -1418,8 +1436,12 @@ public class Messages {
     static @NonNull MessageCodec<Object> getCodec() {
       return AndroidVideoPlayerApiCodec.INSTANCE;
     }
-    /**Sets up an instance of `AndroidVideoPlayerApi` to handle messages through the `binaryMessenger`. */
-    static void setup(@NonNull BinaryMessenger binaryMessenger, @Nullable AndroidVideoPlayerApi api) {
+    /**
+     * Sets up an instance of `AndroidVideoPlayerApi` to handle messages through the
+     * `binaryMessenger`.
+     */
+    static void setup(
+        @NonNull BinaryMessenger binaryMessenger, @Nullable AndroidVideoPlayerApi api) {
       {
         BasicMessageChannel<Object> channel =
             new BasicMessageChannel<>(
@@ -1431,8 +1453,7 @@ public class Messages {
                 try {
                   api.initialize();
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1455,8 +1476,7 @@ public class Messages {
                 try {
                   TextureMessage output = api.create(msgArg);
                   wrapped.add(0, output);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1479,8 +1499,7 @@ public class Messages {
                 try {
                   api.dispose(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1503,8 +1522,7 @@ public class Messages {
                 try {
                   api.setLooping(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1527,8 +1545,7 @@ public class Messages {
                 try {
                   api.setVolume(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1551,8 +1568,7 @@ public class Messages {
                 try {
                   api.setPlaybackSpeed(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1575,8 +1591,7 @@ public class Messages {
                 try {
                   api.play(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1599,8 +1614,7 @@ public class Messages {
                 try {
                   PositionMessage output = api.position(msgArg);
                   wrapped.add(0, output);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1623,8 +1637,7 @@ public class Messages {
                 try {
                   api.seekTo(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1647,8 +1660,7 @@ public class Messages {
                 try {
                   api.pause(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1671,8 +1683,7 @@ public class Messages {
                 try {
                   api.setMixWithOthers(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }

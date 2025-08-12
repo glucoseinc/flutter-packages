@@ -8,7 +8,7 @@
 import 'dart:async';
 import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 
-import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
+import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer, debugPrint;
 import 'package:flutter/services.dart';
 
 class TextureMessage {
@@ -467,8 +467,7 @@ class AndroidVideoPlayerApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.video_player_android.AndroidVideoPlayerApi.initialize', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',
@@ -612,6 +611,8 @@ class AndroidVideoPlayerApi {
         message: 'Unable to establish connection on channel.',
       );
     } else if (replyList.length > 1) {
+      debugPrint('error code: ${replyList[0] as String}');
+      debugPrint('error message: ${replyList[1] as String}');
       throw PlatformException(
         code: replyList[0]! as String,
         message: replyList[1] as String?,
