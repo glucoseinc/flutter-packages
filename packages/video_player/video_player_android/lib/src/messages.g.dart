@@ -616,8 +616,6 @@ class AndroidVideoPlayerApi {
         message: 'Unable to establish connection on channel.',
       );
     } else if (replyList.length > 1) {
-      debugPrint('error code: ${replyList[0] as String}');
-      debugPrint('error message: ${replyList[1] as String}');
       throw PlatformException(
         code: replyList[0]! as String,
         message: replyList[1] as String?,
