@@ -54,8 +54,7 @@ public class Messages {
     } else {
       errorList.add(exception.toString());
       errorList.add(exception.getClass().getSimpleName());
-      errorList.add(
-        "Cause: " + exception.getCause() + ", Stacktrace: " + Log.getStackTraceString(exception));
+      errorList.add("Cause: " + exception.getCause() + ", Stacktrace: " + Log.getStackTraceString(exception));
     }
     return errorList;
   }
@@ -1710,7 +1709,7 @@ public class Messages {
                   api.replaceDataSource(msgArg);
                   wrapped.add(0, null);
                 }
- catch (Throwable exception) {
+                catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1734,7 +1733,7 @@ public class Messages {
                   api.setupMux(msgArg);
                   wrapped.add(0, null);
                 }
- catch (Throwable exception) {
+                catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
