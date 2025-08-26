@@ -347,7 +347,8 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     videoStreamType:(nullable NSString *)videoStreamType
     videoProducer:(nullable NSString *)videoProducer
     videoEncodingVariant:(nullable NSString *)videoEncodingVariant
-    videoCdn:(nullable NSString *)videoCdn {
+    videoCdn:(nullable NSString *)videoCdn
+    viewerPlanStatus:(nullable NSString *)viewerPlanStatus {
   FLTMuxConfigMessage* pigeonResult = [[FLTMuxConfigMessage alloc] init];
   pigeonResult.textureId = textureId;
   pigeonResult.envKey = envKey;
@@ -370,6 +371,7 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
   pigeonResult.videoProducer = videoProducer;
   pigeonResult.videoEncodingVariant = videoEncodingVariant;
   pigeonResult.videoCdn = videoCdn;
+  pigeonResult.viewerPlanStatus = viewerPlanStatus;
   return pigeonResult;
 }
 + (FLTMuxConfigMessage *)fromList:(NSArray *)list {
@@ -395,6 +397,7 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
   pigeonResult.videoProducer = GetNullableObjectAtIndex(list, 18);
   pigeonResult.videoEncodingVariant = GetNullableObjectAtIndex(list, 19);
   pigeonResult.videoCdn = GetNullableObjectAtIndex(list, 20);
+  pigeonResult.viewerPlanStatus = GetNullableObjectAtIndex(list, 21);
   return pigeonResult;
 }
 + (nullable FLTMuxConfigMessage *)nullableFromList:(NSArray *)list {
@@ -423,6 +426,7 @@ static id GetNullableObjectAtIndex(NSArray *array, NSInteger key) {
     (self.videoProducer ?: [NSNull null]),
     (self.videoEncodingVariant ?: [NSNull null]),
     (self.videoCdn ?: [NSNull null]),
+    (self.viewerPlanStatus ?: [NSNull null]),
   ];
 }
 @end

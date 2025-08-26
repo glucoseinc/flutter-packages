@@ -468,6 +468,7 @@ class MuxConfig {
     this.videoProducer,
     this.videoEncodingVariant,
     this.videoCdn,
+    this.viewerPlanStatus,
   });
 
   final String envKey;
@@ -490,6 +491,7 @@ class MuxConfig {
   final String? videoProducer;
   final String? videoEncodingVariant;
   final String? videoCdn;
+  final String? viewerPlanStatus;
 }
 
 enum MuxVideoStreamType {

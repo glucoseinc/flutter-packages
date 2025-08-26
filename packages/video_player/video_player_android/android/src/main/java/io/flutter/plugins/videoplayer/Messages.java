@@ -54,8 +54,7 @@ public class Messages {
     } else {
       errorList.add(exception.toString());
       errorList.add(exception.getClass().getSimpleName());
-      errorList.add(
-        "Cause: " + exception.getCause() + ", Stacktrace: " + Log.getStackTraceString(exception));
+      errorList.add("Cause: " + exception.getCause() + ", Stacktrace: " + Log.getStackTraceString(exception));
     }
     return errorList;
   }
@@ -1066,6 +1065,16 @@ public class Messages {
       this.videoCdn = setterArg;
     }
 
+    private @Nullable String viewerPlanStatus;
+
+    public @Nullable String getViewerPlanStatus() {
+      return viewerPlanStatus;
+    }
+
+    public void setViewerPlanStatus(@Nullable String setterArg) {
+      this.viewerPlanStatus = setterArg;
+    }
+
     public static final class Builder {
 
       private @Nullable Long textureId;
@@ -1215,6 +1224,13 @@ public class Messages {
         return this;
       }
 
+      private @Nullable String viewerPlanStatus;
+
+      public @NonNull Builder setViewerPlanStatus(@Nullable String setterArg) {
+        this.viewerPlanStatus = setterArg;
+        return this;
+      }
+
       public @NonNull MuxConfigMessage build() {
         MuxConfigMessage pigeonReturn = new MuxConfigMessage();
         pigeonReturn.setTextureId(textureId);
@@ -1238,6 +1254,7 @@ public class Messages {
         pigeonReturn.setVideoProducer(videoProducer);
         pigeonReturn.setVideoEncodingVariant(videoEncodingVariant);
         pigeonReturn.setVideoCdn(videoCdn);
+        pigeonReturn.setViewerPlanStatus(viewerPlanStatus);
         return pigeonReturn;
       }
     }
@@ -1266,6 +1283,7 @@ public class Messages {
       toListResult.add(videoProducer);
       toListResult.add(videoEncodingVariant);
       toListResult.add(videoCdn);
+      toListResult.add(viewerPlanStatus);
       return toListResult;
     }
 
@@ -1313,6 +1331,8 @@ public class Messages {
       pigeonResult.setVideoEncodingVariant((String) videoEncodingVariant);
       Object videoCdn = list.get(20);
       pigeonResult.setVideoCdn((String) videoCdn);
+      Object viewerPlanStatus = list.get(21);
+      pigeonResult.setViewerPlanStatus((String) viewerPlanStatus);
       return pigeonResult;
     }
   }
@@ -1418,8 +1438,12 @@ public class Messages {
     static @NonNull MessageCodec<Object> getCodec() {
       return AndroidVideoPlayerApiCodec.INSTANCE;
     }
-    /**Sets up an instance of `AndroidVideoPlayerApi` to handle messages through the `binaryMessenger`. */
-    static void setup(@NonNull BinaryMessenger binaryMessenger, @Nullable AndroidVideoPlayerApi api) {
+    /**
+     * Sets up an instance of `AndroidVideoPlayerApi` to handle messages through the
+     * `binaryMessenger`.
+     */
+    static void setup(
+        @NonNull BinaryMessenger binaryMessenger, @Nullable AndroidVideoPlayerApi api) {
       {
         BasicMessageChannel<Object> channel =
             new BasicMessageChannel<>(
@@ -1431,8 +1455,7 @@ public class Messages {
                 try {
                   api.initialize();
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1455,8 +1478,7 @@ public class Messages {
                 try {
                   TextureMessage output = api.create(msgArg);
                   wrapped.add(0, output);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1479,8 +1501,7 @@ public class Messages {
                 try {
                   api.dispose(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1503,8 +1524,7 @@ public class Messages {
                 try {
                   api.setLooping(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1527,8 +1547,7 @@ public class Messages {
                 try {
                   api.setVolume(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1551,8 +1570,7 @@ public class Messages {
                 try {
                   api.setPlaybackSpeed(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1575,8 +1593,7 @@ public class Messages {
                 try {
                   api.play(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1599,8 +1616,7 @@ public class Messages {
                 try {
                   PositionMessage output = api.position(msgArg);
                   wrapped.add(0, output);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1623,8 +1639,7 @@ public class Messages {
                 try {
                   api.seekTo(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1647,8 +1662,7 @@ public class Messages {
                 try {
                   api.pause(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1671,8 +1685,7 @@ public class Messages {
                 try {
                   api.setMixWithOthers(msgArg);
                   wrapped.add(0, null);
-                }
- catch (Throwable exception) {
+                } catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1696,7 +1709,7 @@ public class Messages {
                   api.replaceDataSource(msgArg);
                   wrapped.add(0, null);
                 }
- catch (Throwable exception) {
+                catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }
@@ -1720,7 +1733,7 @@ public class Messages {
                   api.setupMux(msgArg);
                   wrapped.add(0, null);
                 }
- catch (Throwable exception) {
+                catch (Throwable exception) {
                   ArrayList<Object> wrappedError = wrapError(exception);
                   wrapped = wrappedError;
                 }

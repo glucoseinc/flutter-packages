@@ -8,7 +8,7 @@
 import 'dart:async';
 import 'dart:typed_data' show Float64List, Int32List, Int64List, Uint8List;
 
-import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer;
+import 'package:flutter/foundation.dart' show ReadBuffer, WriteBuffer, debugPrint;
 import 'package:flutter/services.dart';
 
 class TextureMessage {
@@ -292,6 +292,7 @@ class MuxConfigMessage {
     this.videoProducer,
     this.videoEncodingVariant,
     this.videoCdn,
+    this.viewerPlanStatus,
   });
 
   int? textureId;
@@ -336,6 +337,8 @@ class MuxConfigMessage {
 
   String? videoCdn;
 
+  String? viewerPlanStatus;
+
   Object encode() {
     return <Object?>[
       textureId,
@@ -359,6 +362,7 @@ class MuxConfigMessage {
       videoProducer,
       videoEncodingVariant,
       videoCdn,
+      viewerPlanStatus,
     ];
   }
 
@@ -386,6 +390,7 @@ class MuxConfigMessage {
       videoProducer: result[18] as String?,
       videoEncodingVariant: result[19] as String?,
       videoCdn: result[20] as String?,
+      viewerPlanStatus: result[21] as String?,
     );
   }
 }
@@ -467,8 +472,7 @@ class AndroidVideoPlayerApi {
     final BasicMessageChannel<Object?> channel = BasicMessageChannel<Object?>(
         'dev.flutter.pigeon.video_player_android.AndroidVideoPlayerApi.initialize', codec,
         binaryMessenger: _binaryMessenger);
-    final List<Object?>? replyList =
-        await channel.send(null) as List<Object?>?;
+    final List<Object?>? replyList = await channel.send(null) as List<Object?>?;
     if (replyList == null) {
       throw PlatformException(
         code: 'channel-error',

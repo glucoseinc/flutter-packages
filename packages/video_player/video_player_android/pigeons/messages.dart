@@ -94,6 +94,7 @@ class MuxConfigMessage {
   String? videoProducer;
   String? videoEncodingVariant;
   String? videoCdn;
+  String? viewerPlanStatus;
 }
 
 @HostApi(dartHostTestHandler: 'TestHostVideoPlayerApi')
