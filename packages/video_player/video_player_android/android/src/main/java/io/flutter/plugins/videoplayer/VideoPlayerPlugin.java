@@ -56,31 +56,33 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
   public VideoPlayerPlugin() {
   }
 
-  @SuppressWarnings("deprecation")
-  private VideoPlayerPlugin(io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
-    this.flutterState = new FlutterState(
-        registrar.context(),
-        registrar.messenger(),
-        registrar::lookupKeyForAsset,
-        registrar::lookupKeyForAsset,
-        registrar.textures());
-    flutterState.startListening(this, registrar.messenger());
-  }
+  // V1 Embedding API has been removed in AGP 8.x / Kotlin 2.x
+  // Commented out for compatibility with modern Flutter versions
+  // @SuppressWarnings("deprecation")
+  // private VideoPlayerPlugin(io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
+  //   this.flutterState = new FlutterState(
+  //       registrar.context(),
+  //       registrar.messenger(),
+  //       registrar::lookupKeyForAsset,
+  //       registrar::lookupKeyForAsset,
+  //       registrar.textures());
+  //   flutterState.startListening(this, registrar.messenger());
+  // }
 
-  /**
-   * Registers this with the stable v1 embedding. Will not respond to lifecycle
-   * events.
-   */
-  @SuppressWarnings("deprecation")
-  public static void registerWith(
-      @NonNull io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
-    final VideoPlayerPlugin plugin = new VideoPlayerPlugin(registrar);
-    registrar.addViewDestroyListener(
-        view -> {
-          plugin.onDestroy();
-          return false; // We are not interested in assuming ownership of the NativeView.
-        });
-  }
+  // /**
+  //  * Registers this with the stable v1 embedding. Will not respond to lifecycle
+  //  * events.
+  //  */
+  // @SuppressWarnings("deprecation")
+  // public static void registerWith(
+  //     @NonNull io.flutter.plugin.common.PluginRegistry.Registrar registrar) {
+  //   final VideoPlayerPlugin plugin = new VideoPlayerPlugin(registrar);
+  //   registrar.addViewDestroyListener(
+  //       view -> {
+  //         plugin.onDestroy();
+  //         return false; // We are not interested in assuming ownership of the NativeView.
+  //       });
+  // }
 
   @Override
   public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
