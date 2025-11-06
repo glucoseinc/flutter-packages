@@ -156,11 +156,11 @@ public class VideoPlayerPlugin implements FlutterPlugin, AndroidVideoPlayerApi {
         new EventChannel(
             flutterState.binaryMessenger, "flutter.io/videoPlayer/videoEvents" + handle.id());
 
-    String title = arg.getTitle();
-    String artist = arg.getArtist();
-    Boolean isLiveStream = arg.getIsLiveStream();
-    String artworkUrl = arg.getArtworkUrl();
-    String defaultArtworkAssetPath = arg.getDefaultArtworkAssetPath() != null
+    title = arg.getTitle();
+    artist = arg.getArtist();
+    isLiveStream = arg.getIsLiveStream();
+    artworkUrl = arg.getArtworkUrl();
+    defaultArtworkAssetPath = arg.getDefaultArtworkAssetPath() != null
         ? flutterState.keyForAsset.get(arg.getDefaultArtworkAssetPath())
         : null;
 
