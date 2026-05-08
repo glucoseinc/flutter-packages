@@ -6,6 +6,7 @@
 #import "FLTVideoPlayerPlugin_Test.h"
 
 #import <AVFoundation/AVFoundation.h>
+#import <Sentry/Sentry.h>
 #import <AVKit/AVKit.h>
 #import <GLKit/GLKit.h>
 #import "AVAssetTrackUtils.h"
@@ -190,8 +191,13 @@ NS_INLINE UIViewController *rootViewController(void) {
 #pragma clang diagnostic ignored "-Wdeprecated-declarations"
   // TODO: (hellohuanlin) Provide a non-deprecated codepath. See
   // https://github.com/flutter/flutter/issues/104117
-  return UIApplication.sharedApplication.keyWindow.rootViewController;
+  UIWindow *keyWindow = UIApplication.sharedApplication.keyWindow;
 #pragma clang diagnostic pop
+  if (keyWindow == nil) {
+    [SentrySDK captureMessage:@"[video_player] keyWindow is nil: UIScene environment may prevent playerLayer from being added (encrypted video blank bug)"
+                    withLevel:kSentryLevelWarning];
+  }
+  return keyWindow.rootViewController;
 }
 
 - (AVMutableVideoComposition *)getVideoCompositionWithTransform:(CGAffineTransform)transform
@@ -279,7 +285,12 @@ NS_INLINE UIViewController *rootViewController(void) {
   // Picture-in-picture will show a placeholder over other widgets when video_player is used in a
   // ScrollView, PageView or in a widget that changes location.
   _playerLayer.opacity = 0.001;
-  [rootViewController().view.layer addSublayer:_playerLayer];
+  UIViewController *vc = rootViewController();
+  if (vc == nil) {
+    [SentrySDK captureMessage:@"[video_player] rootViewController is nil: playerLayer not added, encrypted video will not play"
+                    withLevel:kSentryLevelError];
+  }
+  [vc.view.layer addSublayer:_playerLayer];
 
   _player.allowsExternalPlayback = NO;
 
