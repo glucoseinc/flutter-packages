@@ -6,7 +6,7 @@
 #import "FLTVideoPlayerPlugin_Test.h"
 
 #import <AVFoundation/AVFoundation.h>
-#import <Sentry/Sentry.h>
+@import Sentry;
 #import <AVKit/AVKit.h>
 #import <GLKit/GLKit.h>
 #import "AVAssetTrackUtils.h"
@@ -195,7 +195,7 @@ NS_INLINE UIViewController *rootViewController(void) {
 #pragma clang diagnostic pop
   if (keyWindow == nil) {
     [SentrySDK captureMessage:@"[video_player] keyWindow is nil: UIScene environment may prevent playerLayer from being added (encrypted video blank bug)"
-                    withLevel:kSentryLevelWarning];
+               withScopeBlock:^(SentryScope *scope) { [scope setLevel:kSentryLevelWarning]; }];
   }
   return keyWindow.rootViewController;
 }
@@ -288,7 +288,7 @@ NS_INLINE UIViewController *rootViewController(void) {
   UIViewController *vc = rootViewController();
   if (vc == nil) {
     [SentrySDK captureMessage:@"[video_player] rootViewController is nil: playerLayer not added, encrypted video will not play"
-                    withLevel:kSentryLevelError];
+               withScopeBlock:^(SentryScope *scope) { [scope setLevel:kSentryLevelError]; }];
   }
   [vc.view.layer addSublayer:_playerLayer];
 
