@@ -39,6 +39,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.ui.PlayerNotificationManager;
@@ -64,6 +65,38 @@ final class VideoPlayer {
 
   private static final int NOTIFICATION_ID = 2020101921;
   private static final String NOTIFICATION_CHANNEL = "SHIRASU_PLAYER_NOTIFICATION";
+
+  /**
+   * 現在の再生位置より前に保持しておくバッファの長さ (ms)。
+   *
+   * <p>ExoPlayer の既定値は 0 で、再生済みの区間は即座に破棄される。そのため 10 秒戻しのような
+   * わずかな巻き戻しでもセグメントを取り直すことになり、毎回ローディングが挟まっていた
+   * (AVPlayer は既定で再生済み区間を保持するため iOS では発生しない)。
+   * 巻き戻しがバッファ内で完結するよう、直近 30 秒ぶんを残しておく。
+   *
+   * <p>バイト数の上限 ({@code targetBufferBytes}) は既定のまま (映像+音声で約 144MB) にしている。
+   * ここを絞ると保持中の過去サンプルも同じ枠を食うため、バックバッファのぶんだけ先読みが
+   * 削られて「10 秒スキップを数回連打するとバッファ外に出る」という別の待ちを生む。
+   * 実際のバッファ量は時間ベースのしきい値 (先読み 50 秒 + バックバッファ 30 秒) で決まる。
+   */
+  private static final int BACK_BUFFER_DURATION_MS = 30_000;
+
+  /**
+   * シーク後・再生開始時に、再生を始めるために必要なバッファの長さ (ms)。
+   *
+   * <p>ExoPlayer の既定値は 2500ms。バッファ済みでないシーク先へ飛んだときはこの長さが
+   * 貯まるまで待たされるので、体感待ち時間を減らすために短くしている。
+   * HLS のセグメント長より短い値なので、実質「1 セグメント取得できたら再生する」になる。
+   */
+  private static final int BUFFER_FOR_PLAYBACK_MS = 1_000;
+
+  /**
+   * バッファ枯渇による停止から再生を再開するために必要なバッファの長さ (ms)。
+   *
+   * <p>ExoPlayer の既定値は 5000ms。シーク時には適用されない (シークは rebuffering 扱いでは
+   * ないため) が、シーク直後に回線が細くて詰まった場合の復帰も遅いので合わせて短くする。
+   */
+  private static final int BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS = 3_000;
 
   public ExoPlayer exoPlayer;
 
@@ -528,7 +561,30 @@ final class VideoPlayer {
         new DefaultDataSource.Factory(context, baseDataSourceFactory);
     DefaultMediaSourceFactory mediaSourceFactory =
         new DefaultMediaSourceFactory(context).setDataSourceFactory(dataSourceFactory);
-    return new ExoPlayer.Builder(context).setMediaSourceFactory(mediaSourceFactory).build();
+    return new ExoPlayer.Builder(context)
+        .setMediaSourceFactory(mediaSourceFactory)
+        .setLoadControl(buildLoadControl())
+        .build();
+  }
+
+  /**
+   * シーク時のローディングを抑えるための LoadControl を組み立てる。
+   *
+   * <p>既定の {@link DefaultLoadControl} は再生済みの区間を保持しないため、巻き戻しのたびに
+   * セグメントを取り直してローディングが挟まる。バックバッファを持たせ、再生再開に必要な
+   * バッファ量も切り詰めることで、通常のシーク操作で待ちが発生しないようにする。
+   */
+  @OptIn(markerClass = UnstableApi.class)
+  @NonNull
+  private static DefaultLoadControl buildLoadControl() {
+    return new DefaultLoadControl.Builder()
+        .setBufferDurationsMs(
+            DefaultLoadControl.DEFAULT_MIN_BUFFER_MS,
+            DefaultLoadControl.DEFAULT_MAX_BUFFER_MS,
+            BUFFER_FOR_PLAYBACK_MS,
+            BUFFER_FOR_PLAYBACK_AFTER_REBUFFER_MS)
+        .setBackBuffer(BACK_BUFFER_DURATION_MS, /* retainBackBufferFromKeyframe= */ true)
+        .build();
   }
 
   @Nullable
