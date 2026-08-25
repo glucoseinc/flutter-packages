@@ -87,6 +87,34 @@ static void *playbackBufferEmptyContext = &playbackBufferEmptyContext;
 static void *playbackBufferFullContext = &playbackBufferFullContext;
 static void *rateContext = &rateContext;
 
+// 原因エラーをたどる深さの上限。通信失敗は NSURLError の下にさらに数段ネストするため
+// 複数段たどるが、無制限に連ねても読めないので打ち切る。
+static const int kMaxUnderlyingErrorDepth = 3;
+
+/// 再生エラーの原因を Sentry から辿れるようにするための説明文を組み立てる。
+///
+/// localizedDescription は端末の言語設定で文言が変わるうえ、原因コードを含まないため
+/// 「サーバに接続できませんでした」のような曖昧な文言しか残らない。domain とコードを
+/// 併記して、Dart 側でグルーピングキーとして使えるようにする。
+static NSString *FLTDescribePlayerItemError(NSError *error) {
+  if (error == nil) {
+    return @"Failed to load video: unknown error";
+  }
+
+  NSMutableString *description =
+      [NSMutableString stringWithFormat:@"Failed to load video: [%@:%ld] %@", error.domain,
+                                        (long)error.code, error.localizedDescription];
+
+  NSError *underlyingError = error.userInfo[NSUnderlyingErrorKey];
+  for (int depth = 0; underlyingError != nil && depth < kMaxUnderlyingErrorDepth; depth++) {
+    [description appendFormat:@" <- [%@:%ld] %@", underlyingError.domain,
+                              (long)underlyingError.code, underlyingError.localizedDescription];
+    underlyingError = underlyingError.userInfo[NSUnderlyingErrorKey];
+  }
+
+  return description;
+}
+
 @implementation FLTVideoPlayer
 - (instancetype)initWithAsset:(NSString *)asset
                  frameUpdater:(FLTFrameUpdater *)frameUpdater
@@ -426,11 +454,9 @@ NS_INLINE UIViewController *rootViewController(void) {
     switch (item.status) {
       case AVPlayerItemStatusFailed:
         if (_eventSink != nil) {
-          _eventSink([FlutterError
-              errorWithCode:@"VideoError"
-                    message:[@"Failed to load video: "
-                                stringByAppendingString:[item.error localizedDescription]]
-                    details:nil]);
+          _eventSink([FlutterError errorWithCode:@"VideoError"
+                                         message:FLTDescribePlayerItemError(item.error)
+                                         details:nil]);
         }
         break;
       case AVPlayerItemStatusUnknown:

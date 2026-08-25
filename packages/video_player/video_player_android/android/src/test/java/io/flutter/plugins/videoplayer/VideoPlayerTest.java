@@ -5,6 +5,7 @@
 package io.flutter.plugins.videoplayer;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.Mockito.*;
@@ -14,13 +15,20 @@ import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 
 import android.graphics.SurfaceTexture;
+import android.net.Uri;
+import androidx.media3.common.ParserException;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.VideoSize;
+import androidx.media3.datasource.DataSpec;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
 import io.flutter.plugin.common.EventChannel;
 import io.flutter.view.TextureRegistry;
+import java.io.IOException;
+import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -303,5 +311,125 @@ public class VideoPlayerTest {
 
     verify(fakeExoPlayer).seekToDefaultPosition();
     verify(fakeExoPlayer).prepare();
+  }
+
+  @Test
+  public void describePlaybackExceptionIncludesErrorCodeNameAndMessage() {
+    PlaybackException exception =
+        new PlaybackException("Source error", null, PlaybackException.ERROR_CODE_IO_UNSPECIFIED);
+
+    assertEquals(
+        "[ERROR_CODE_IO_UNSPECIFIED] Source error",
+        VideoPlayer.describePlaybackException(exception));
+  }
+
+  @Test
+  public void describePlaybackExceptionFallsBackWhenMessageIsMissing() {
+    PlaybackException exception =
+        new PlaybackException(null, null, PlaybackException.ERROR_CODE_IO_UNSPECIFIED);
+
+    assertEquals(
+        "[ERROR_CODE_IO_UNSPECIFIED] no message", VideoPlayer.describePlaybackException(exception));
+  }
+
+  @Test
+  public void describePlaybackExceptionExposesHttpStatusCode() {
+    HttpDataSource.InvalidResponseCodeException cause =
+        new HttpDataSource.InvalidResponseCodeException(
+            403,
+            "Forbidden",
+            null,
+            Collections.emptyMap(),
+            new DataSpec(Uri.parse("http://[::1]:8080/segment.ts")),
+            new byte[0]);
+    PlaybackException exception =
+        new PlaybackException(
+            "Source error", cause, PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS);
+
+    assertEquals(
+        "[ERROR_CODE_IO_BAD_HTTP_STATUS] Source error <- http status 403",
+        VideoPlayer.describePlaybackException(exception));
+  }
+
+  @Test
+  public void describePlaybackExceptionExposesHttpFailureType() {
+    HttpDataSource.HttpDataSourceException cause =
+        new HttpDataSource.HttpDataSourceException(
+            "Unable to connect",
+            new DataSpec(Uri.parse("http://[::1]:8080/segment.ts")),
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+            HttpDataSource.HttpDataSourceException.TYPE_OPEN);
+    PlaybackException exception =
+        new PlaybackException(
+            "Source error", cause, PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED);
+
+    assertEquals(
+        "[ERROR_CODE_IO_NETWORK_CONNECTION_FAILED] Source error <- http io type="
+            + HttpDataSource.HttpDataSourceException.TYPE_OPEN
+            + ": Unable to connect",
+        VideoPlayer.describePlaybackException(exception));
+  }
+
+  @Test
+  public void describePlaybackExceptionLabelsParserErrors() {
+    PlaybackException exception =
+        new PlaybackException(
+            "Source error",
+            ParserException.createForMalformedManifest("Input does not start with #EXTM3U", null),
+            PlaybackException.ERROR_CODE_PARSING_MANIFEST_MALFORMED);
+
+    assertTrue(
+        VideoPlayer.describePlaybackException(exception)
+            .startsWith(
+                "[ERROR_CODE_PARSING_MANIFEST_MALFORMED] Source error <- parser error: "
+                    + "Input does not start with #EXTM3U"));
+  }
+
+  @Test
+  public void describePlaybackExceptionKeepsLibraryExceptionNames() {
+    PlaybackException exception =
+        new PlaybackException(
+            "Source error",
+            new SocketTimeoutException("timeout"),
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT);
+
+    assertEquals(
+        "[ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT] Source error"
+            + " <- java.net.SocketTimeoutException: timeout",
+        VideoPlayer.describePlaybackException(exception));
+  }
+
+  @Test
+  public void describePlaybackExceptionStopsFollowingCausesAtThirdLevel() {
+    IOException deepest = new IOException("level4");
+    PlaybackException exception =
+        new PlaybackException(
+            "Source error",
+            new IOException("level1", new IOException("level2", new IOException("level3", deepest))),
+            PlaybackException.ERROR_CODE_IO_UNSPECIFIED);
+
+    assertEquals(
+        "[ERROR_CODE_IO_UNSPECIFIED] Source error"
+            + " <- java.io.IOException: level1"
+            + " <- java.io.IOException: level2"
+            + " <- java.io.IOException: level3",
+        VideoPlayer.describePlaybackException(exception));
+  }
+
+  @Test
+  public void describePlaybackExceptionTruncatesLongCauseMessages() {
+    String longMessage = new String(new char[200]).replace('\0', 'a');
+    PlaybackException exception =
+        new PlaybackException(
+            "Source error",
+            new SocketTimeoutException(longMessage),
+            PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT);
+
+    assertEquals(
+        "[ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT] Source error"
+            + " <- java.net.SocketTimeoutException: "
+            + longMessage.substring(0, 120)
+            + "...",
+        VideoPlayer.describePlaybackException(exception));
   }
 }

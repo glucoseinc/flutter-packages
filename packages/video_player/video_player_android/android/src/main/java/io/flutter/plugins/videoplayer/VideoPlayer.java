@@ -30,6 +30,7 @@ import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.MimeTypes;
+import androidx.media3.common.ParserException;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
@@ -39,6 +40,7 @@ import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
 import androidx.media3.datasource.DefaultDataSource;
 import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.HttpDataSource;
 import androidx.media3.exoplayer.DefaultLoadControl;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
@@ -244,7 +246,7 @@ final class VideoPlayer {
               exoPlayer.seekToDefaultPosition();
               exoPlayer.prepare();
             } else if (eventSink != null) {
-              eventSink.error("VideoError", "Video player had error " + error, null);
+              eventSink.error("VideoError", "Video player had error " + describePlaybackException(error), null);
             }
           }
 
@@ -258,6 +260,66 @@ final class VideoPlayer {
             }
           }
         });
+  }
+
+  // 原因例外をたどる深さと、1件あたりのメッセージ長の上限。
+  // 通信失敗は原因が数段ネストするので複数段たどるが、無制限に連ねても読めないので打ち切る。
+  private static final int MAX_CAUSE_DEPTH = 3;
+  private static final int MAX_CAUSE_MESSAGE_LENGTH = 120;
+
+  // 再生エラーの原因を Sentry から辿れるようにするための説明文を組み立てる。
+  //
+  // PlaybackException.toString() は難読化されたクラス名と "Source error" のような大分類しか
+  // 含まず、実際の原因 (HTTPステータス・タイムアウト等) が落ちてしまう。エラーコード名は
+  // 定数文字列なので難読化されず、Dart側でグルーピングキーとして使える。
+  @VisibleForTesting
+  static String describePlaybackException(PlaybackException error) {
+    StringBuilder description = new StringBuilder("[").append(error.getErrorCodeName()).append("] ");
+    description.append(error.getMessage() == null ? "no message" : error.getMessage());
+
+    Throwable cause = error.getCause();
+    for (int depth = 0; cause != null && depth < MAX_CAUSE_DEPTH; depth++) {
+      description.append(" <- ").append(describeCause(cause));
+      cause = cause.getCause();
+    }
+    return description.toString();
+  }
+
+  // 原因例外1件分の説明。難読化でクラス名が潰れるため、判別に使える情報を型ごとに取り出す。
+  private static String describeCause(Throwable cause) {
+    if (cause instanceof HttpDataSource.InvalidResponseCodeException) {
+      // 署名切れ(403)やセグメント欠落(404)などを切り分けるための最重要情報
+      return "http status " + ((HttpDataSource.InvalidResponseCodeException) cause).responseCode;
+    }
+    if (cause instanceof HttpDataSource.HttpDataSourceException) {
+      // TYPE_OPEN / TYPE_READ / TYPE_CLOSE のどこで落ちたか
+      return "http io type=" + ((HttpDataSource.HttpDataSourceException) cause).type + describeCauseMessage(cause);
+    }
+    if (cause instanceof ParserException) {
+      return "parser error" + describeCauseMessage(cause);
+    }
+
+    // java.* / android.* は難読化されないライブラリクラスなので、名前がそのまま手がかりになる
+    // (SocketTimeoutException / UnknownHostException など)
+    String name = cause.getClass().getName();
+    if (name.startsWith("java.") || name.startsWith("javax.") || name.startsWith("android.")) {
+      return name + describeCauseMessage(cause);
+    }
+
+    // 難読化されたクラスは名前に意味がないので、メッセージだけを残す
+    String message = cause.getMessage();
+    return message == null ? "unknown error" : truncateCauseMessage(message);
+  }
+
+  private static String describeCauseMessage(Throwable cause) {
+    String message = cause.getMessage();
+    return message == null ? "" : ": " + truncateCauseMessage(message);
+  }
+
+  private static String truncateCauseMessage(String message) {
+    return message.length() <= MAX_CAUSE_MESSAGE_LENGTH
+        ? message
+        : message.substring(0, MAX_CAUSE_MESSAGE_LENGTH) + "...";
   }
 
   void sendBufferingUpdate() {
