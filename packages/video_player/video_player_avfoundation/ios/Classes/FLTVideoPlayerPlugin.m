@@ -71,6 +71,11 @@
 @property(nonatomic, readonly) BOOL isInitialized;
 @property(nonatomic) BOOL isPictureInPictureStarted;
 @property(nonatomic) AVPlayerTimeControlStatus lastAVPlayerTimeControlStatus;
+/// 最後に判明した再生時間 (ミリ秒)。0 は「まだ分からない」ことを表す。
+///
+/// `AVAsset.duration` を未ロードのまま読むとメインスレッドがブロックされるため、判明した値を
+/// ここに控えておき、ブロックせずに読めない間はこの値を返す。
+@property(nonatomic) int64_t lastKnownDurationInMillis;
 - (instancetype)initWithURL:(NSURL *)url
                frameUpdater:(FLTFrameUpdater *)frameUpdater
                 httpHeaders:(nonnull NSDictionary<NSString *, NSString *> *)headers
@@ -469,6 +474,14 @@ NS_INLINE UIViewController *rootViewController(void) {
     }
   } else if (context == presentationSizeContext || context == durationContext) {
     AVPlayerItem *item = (AVPlayerItem *)object;
+    if (context == durationContext) {
+      // 再生時間が判明したらキャッシュを更新しておく。以降は同期読み出しなしで参照できる。
+      int64_t duration = [self duration];
+      if (duration != 0 && _isInitialized) {
+        // コントロールセンターに 0 のまま残るのを防ぐため、判明した時点で入れ直す。
+        [self syncNowPlayingInfo];
+      }
+    }
     if (item.status == AVPlayerItemStatusReadyToPlay) {
       // Due to an apparent bug, when the player item is ready, it still may not have determined
       // its presentation size or duration. When these properties are finally set, re-check if
@@ -567,6 +580,9 @@ NS_INLINE UIViewController *rootViewController(void) {
     // The player may be initialized but still needs to determine the duration.
     int64_t duration = [self duration];
     if (duration == 0) {
+      // 同期読み出しはメインスレッドを止めるため行わない。非同期ロードを仕掛けて、
+      // 完了時にこの判定へ戻ってくる。
+      [self loadDurationAsynchronously];
       return;
     }
 
@@ -594,20 +610,82 @@ NS_INLINE UIViewController *rootViewController(void) {
   return FLTCMTimeToMillis([_player currentTime]);
 }
 
+/// 再生時間 (ミリ秒)。まだ分からないときは 0 を返す。
+///
+/// `[[AVPlayerItem asset] duration]` は値が未ロードだと mediaserverd への同期 XPC が走り、
+/// メインスレッドが数秒止まる ("App hanging for at least 2000 ms." の直接の原因)。
+/// ここではブロックせずに読める値だけを見て、どれも読めなければ最後に判明した値を返す。
+///
+/// TODO(SRS-3732): このフォークをやめてプレーンな video_player をラップする構成に移行するとき、
+/// ハングが再発しないか必ず動作確認すること。上流 (video_player_avfoundation 2.10.0 時点) には
+/// この修正が入っておらず、`FVPVideoPlayer.m` の `-duration` / `-seekTo:completion:` /
+/// `-reportInitialized` が同じ同期読み出しを残している。しかも上流の `reportInitialized` は
+/// tracks のロードを待たずに ReadyToPlay で `self.duration` を読むため、露出はこのフォークより大きい。
+/// 移行で消えるのは画質切り替えの経路だけ (上流は `selectVideoTrack` を preferredPeakBitRate で
+/// 実装しており AVPlayerItem を差し替えない)。初期化パスと、プロキシのポート変更で
+/// プレイヤーを作り直す経路は残るので、ラッパー側の設計だけでは塞げない。
+/// 対処が必要な場合は別途検討すること。
 - (int64_t)duration {
+  AVPlayerItem *item = [_player currentItem];
+  if (item == nil) {
+    return _lastKnownDurationInMillis;
+  }
+
+  // `[AVPlayerItem duration]` はロード済みの値しか返さないためブロックしない。
+  // HLS はこちらでしか再生時間が分からない。
+  CMTime itemDuration = [item duration];
+  if (CMTIME_IS_NUMERIC(itemDuration)) {
+    _lastKnownDurationInMillis = FLTCMTimeToMillis(itemDuration);
+    return _lastKnownDurationInMillis;
+  }
+
   // Note: https://openradar.appspot.com/radar?id=4968600712511488
-  // `[AVPlayerItem duration]` can be `kCMTimeIndefinite`,
-  // use `[[AVPlayerItem asset] duration]` instead.
-  return FLTCMTimeToMillis([[[_player currentItem] asset] duration]);
+  // `[AVPlayerItem duration]` が `kCMTimeIndefinite` のままになるファイル再生のために asset 側も
+  // 見るが、ロード済みのときだけ読む。未ロードのときは loadDurationAsynchronously で待つ。
+  AVAsset *asset = [item asset];
+  if ([asset statusOfValueForKey:@"duration" error:nil] == AVKeyValueStatusLoaded) {
+    _lastKnownDurationInMillis = FLTCMTimeToMillis([asset duration]);
+    return _lastKnownDurationInMillis;
+  }
+
+  return _lastKnownDurationInMillis;
+}
+
+/// `AVAsset.duration` を非同期にロードし、完了したら初期化判定をやり直す。
+///
+/// 同期読み出しでメインスレッドを止めないための代替経路。ロード済みならブロックせず即座に
+/// 完了ハンドラが呼ばれるため、何度呼んでも問題ない。
+- (void)loadDurationAsynchronously {
+  AVAsset *asset = [[_player currentItem] asset];
+  if (asset == nil) {
+    return;
+  }
+  __weak FLTVideoPlayer *weakSelf = self;
+  [asset loadValuesAsynchronouslyForKeys:@[ @"duration" ]
+                       completionHandler:^{
+                         // この完了ハンドラは AVFoundation のバックグラウンドキューで動くため、
+                         // メインスレッドに戻してから状態を更新する。
+                         dispatch_async(dispatch_get_main_queue(), ^{
+                           FLTVideoPlayer *strongSelf = weakSelf;
+                           if (strongSelf == nil || strongSelf.disposed) {
+                             return;
+                           }
+                           [strongSelf setupEventSinkIfReadyToPlay];
+                           [strongSelf updatePlayingState];
+                         });
+                       }];
 }
 
 - (void)seekTo:(int)location completionHandler:(void (^)(BOOL))completionHandler {
   CMTime locationCMT = CMTimeMake(location, 1000);
-  CMTimeValue duration = _player.currentItem.asset.duration.value;
+  // `_player.currentItem.asset.duration` の同期読み出しはメインスレッドを数秒止める (`-duration` 参照)。
+  // replaceDataSource 直後は asset が必ず未ロードなので、画質切り替え時に確実に踏んでいた。
+  // あわせて、旧実装が asset のタイムスケール単位の値をミリ秒の location と比べていたのも直す。
+  int64_t durationInMillis = [self duration];
   // Without adding tolerance when seeking to duration,
   // seekToTime will never complete, and this call will hang.
   // see issue https://github.com/flutter/flutter/issues/124475.
-  CMTime tolerance = location == duration ? CMTimeMake(1, 1000) : kCMTimeZero;
+  CMTime tolerance = location == durationInMillis ? CMTimeMake(1, 1000) : kCMTimeZero;
   [_player seekToTime:locationCMT
         toleranceBefore:tolerance
          toleranceAfter:tolerance
@@ -664,6 +742,12 @@ NS_INLINE UIViewController *rootViewController(void) {
   NSMutableDictionary *nowPlayingInfo = [[MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo mutableCopy];
   [nowPlayingInfo setObject:@(self.position / 1000) forKey:MPNowPlayingInfoPropertyElapsedPlaybackTime];
   [nowPlayingInfo setObject:@(_player.rate) forKey:MPNowPlayingInfoPropertyPlaybackRate];
+  // 再生時間は非同期に判明するため、コントロールセンターの初期設定時には 0 のことがある。
+  // 判明していれば毎回入れ直す。
+  int64_t durationInMillis = [self duration];
+  if (!_isLiveStream && durationInMillis > 0) {
+    [nowPlayingInfo setObject:@(durationInMillis / 1000) forKey:MPMediaItemPropertyPlaybackDuration];
+  }
   [MPNowPlayingInfoCenter defaultCenter].nowPlayingInfo = nowPlayingInfo;
 }
 
@@ -726,6 +810,9 @@ NS_INLINE UIViewController *rootViewController(void) {
 
 - (void)replaceCurrentItem:(AVPlayerItem *)newItem {
     [self removeObserverFromItem:self.player.currentItem];
+
+    // 差し替え前の動画の再生時間を引きずらないよう、判明済みの値を捨てる
+    _lastKnownDurationInMillis = 0;
 
     [self.player replaceCurrentItemWithPlayerItem:newItem];
     [self addObserversForItem:newItem player:_player];
