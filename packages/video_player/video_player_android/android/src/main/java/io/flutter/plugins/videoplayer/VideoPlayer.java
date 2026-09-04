@@ -396,7 +396,12 @@ final class VideoPlayer {
 
     PendingIntent sessionActivity = buildSessionActivityPendingIntent(context);
 
-    MediaSession.Builder builder = new MediaSession.Builder(context, exoPlayer).setId("VideoPlayer");
+    // media3 は MediaSession の ID をプロセス内で一意に扱い、同じ ID のセッションが生きている
+    // うちにもう一つ作ると IllegalStateException を投げる。画面遷移の都合でプレイヤーが一時的に
+    // 2 つ並ぶことがあるため、固定 ID だと後から再生を始めた側が必ず落ちていた (SRS-3368)。
+    // 通知 ID は共有のままなので、通知に出るのは最後に再生を始めたプレイヤーになる。
+    MediaSession.Builder builder =
+        new MediaSession.Builder(context, exoPlayer).setId("VideoPlayer-" + textureEntry.id());
     if(sessionActivity != null){
       builder.setSessionActivity(sessionActivity);
     }
