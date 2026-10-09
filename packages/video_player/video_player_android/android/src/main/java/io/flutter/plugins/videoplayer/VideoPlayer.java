@@ -35,6 +35,7 @@ import androidx.media3.common.PlaybackException;
 import androidx.media3.common.PlaybackParameters;
 import androidx.media3.common.Player;
 import androidx.media3.common.Player.Listener;
+import androidx.media3.common.Timeline;
 import androidx.media3.common.VideoSize;
 import androidx.media3.common.util.UnstableApi;
 import androidx.media3.datasource.DataSource;
@@ -259,7 +260,41 @@ final class VideoPlayer {
               eventSink.success(event);
             }
           }
+
+          // Dart の play() だけでなく通知・メディアセッションからの再開も拾うため、
+          // play() ではなく playWhenReady の変化を見る
+          @Override
+          public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+            if (playWhenReady) {
+              seekToLiveEdgeIfBehind();
+            }
+          }
         });
+  }
+
+  /**
+   * ライブ配信の再開時に、最新位置からこれ以上遅れていたら最新位置へ戻す (ms)。
+   *
+   * <p>遅れが小さいときまでシークすると、初回の再生開始や一瞬の一時停止のたびに読み込みを挟むことになる。
+   */
+  private static final long LIVE_EDGE_SYNC_THRESHOLD_MS = 3_000;
+
+  // ExoPlayer は一時停止した位置から再開するため、そのままだと止めていた時間のぶん配信から遅れ続ける。
+  // 止めた位置がプレイリストから消えるほど長く止めた場合は BehindLiveWindowException 経由で最新位置へ戻るが、
+  // それより短いと戻らないので、Web と揃えて再開時に最新位置へ戻す (SRS-4036)。
+  private void seekToLiveEdgeIfBehind() {
+    if (!exoPlayer.isCurrentMediaItemLive()) {
+      return;
+    }
+    Timeline timeline = exoPlayer.getCurrentTimeline();
+    if (timeline.isEmpty()) {
+      return;
+    }
+    Timeline.Window window = timeline.getWindow(exoPlayer.getCurrentMediaItemIndex(), new Timeline.Window());
+    long behindMs = window.getDefaultPositionMs() - exoPlayer.getCurrentPosition();
+    if (behindMs > LIVE_EDGE_SYNC_THRESHOLD_MS) {
+      exoPlayer.seekToDefaultPosition();
+    }
   }
 
   // 原因例外をたどる深さと、1件あたりのメッセージ長の上限。

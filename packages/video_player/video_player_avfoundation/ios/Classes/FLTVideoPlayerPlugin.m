@@ -597,8 +597,39 @@ NS_INLINE UIViewController *rootViewController(void) {
 }
 
 - (void)play {
+  if (_isLiveStream && !_isPlaying) {
+    [self seekToLiveEdgeIfBehind];
+  }
   _isPlaying = YES;
   [self updatePlayingState];
+}
+
+/// ライブ配信の再開時に、最新位置からこれ以上遅れていたら最新位置へ戻す (秒)。
+///
+/// 遅れが小さいときまでシークすると、初回の再生開始や一瞬の一時停止のたびに読み込みを挟むことになる。
+static const Float64 kLiveEdgeSyncThresholdSeconds = 3;
+
+/// AVPlayer は一時停止した位置から再開するため、そのままだと止めていた時間のぶん配信から遅れ続ける。
+/// Web と揃えて再開時に最新位置へ戻す (SRS-4036)。
+- (void)seekToLiveEdgeIfBehind {
+  AVPlayerItem *item = _player.currentItem;
+  NSValue *lastRange = item.seekableTimeRanges.lastObject;
+  if (lastRange == nil) {
+    return;
+  }
+  CMTimeRange range = lastRange.CMTimeRangeValue;
+  if (!CMTIMERANGE_IS_VALID(range) || CMTIMERANGE_IS_EMPTY(range)) {
+    return;
+  }
+
+  // recommendedTimeOffsetFromLive ぶん手前にはしない。通常の再生は末尾ちょうどで進んでいるのに
+  // この値は 6 秒 (セグメント長の 3 倍) を返し、そのぶん普段より遅れたまま再開することになる
+  CMTime target = CMTimeRangeGetEnd(range);
+
+  Float64 behindSeconds = CMTimeGetSeconds(CMTimeSubtract(target, item.currentTime));
+  if (behindSeconds > kLiveEdgeSyncThresholdSeconds) {
+    [_player seekToTime:target];
+  }
 }
 
 - (void)pause {
