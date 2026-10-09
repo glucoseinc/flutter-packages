@@ -627,7 +627,7 @@ static const Float64 kLiveEdgeSyncThresholdSeconds = 3;
   CMTime target = CMTimeRangeGetEnd(range);
 
   Float64 behindSeconds = CMTimeGetSeconds(CMTimeSubtract(target, item.currentTime));
-  if (behindSeconds > kLiveEdgeSyncThresholdSeconds) {
+  if (behindSeconds >= kLiveEdgeSyncThresholdSeconds) {
     [_player seekToTime:target];
   }
 }

@@ -292,7 +292,7 @@ final class VideoPlayer {
     }
     Timeline.Window window = timeline.getWindow(exoPlayer.getCurrentMediaItemIndex(), new Timeline.Window());
     long behindMs = window.getDefaultPositionMs() - exoPlayer.getCurrentPosition();
-    if (behindMs > LIVE_EDGE_SYNC_THRESHOLD_MS) {
+    if (behindMs >= LIVE_EDGE_SYNC_THRESHOLD_MS) {
       exoPlayer.seekToDefaultPosition();
     }
   }

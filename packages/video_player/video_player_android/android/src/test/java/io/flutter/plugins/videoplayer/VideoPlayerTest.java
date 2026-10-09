@@ -8,6 +8,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.*;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.never;
@@ -19,6 +20,7 @@ import android.net.Uri;
 import androidx.media3.common.ParserException;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.Timeline;
 import androidx.media3.common.VideoSize;
 import androidx.media3.datasource.DataSpec;
 import androidx.media3.datasource.DefaultHttpDataSource;
@@ -311,6 +313,81 @@ public class VideoPlayerTest {
 
     verify(fakeExoPlayer).seekToDefaultPosition();
     verify(fakeExoPlayer).prepare();
+  }
+
+  private List<Player.Listener> resumeAt(boolean isLive, long defaultPositionMs, long positionMs) {
+    List<Player.Listener> listeners = new LinkedList<>();
+    doAnswer(invocation -> listeners.add(invocation.getArgument(0)))
+        .when(fakeExoPlayer)
+        .addListener(any());
+
+    Timeline timeline = mock(Timeline.class);
+    when(timeline.isEmpty()).thenReturn(false);
+    doAnswer(
+            invocation -> {
+              Timeline.Window window = invocation.getArgument(1);
+              window.defaultPositionUs = defaultPositionMs * 1000;
+              return window;
+            })
+        .when(timeline)
+        .getWindow(anyInt(), any(Timeline.Window.class));
+    when(fakeExoPlayer.getCurrentTimeline()).thenReturn(timeline);
+    when(fakeExoPlayer.isCurrentMediaItemLive()).thenReturn(isLive);
+    when(fakeExoPlayer.getCurrentPosition()).thenReturn(positionMs);
+
+    VideoPlayer unused =
+        new VideoPlayer(
+            fakeExoPlayer,
+            fakeEventChannel,
+            fakeSurfaceTextureEntry,
+            fakeVideoPlayerOptions,
+            fakeEventSink,
+            httpDataSourceFactorySpy);
+    return listeners;
+  }
+
+  @Test
+  public void resumingLiveStreamSeeksToLiveEdgeWhenBehindByThreshold() {
+    List<Player.Listener> listeners = resumeAt(true, 60_000, 57_000);
+
+    listeners.forEach(
+        listener ->
+            listener.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST));
+
+    verify(fakeExoPlayer).seekToDefaultPosition();
+  }
+
+  @Test
+  public void resumingLiveStreamDoesNotSeekWhenSlightlyBehind() {
+    List<Player.Listener> listeners = resumeAt(true, 60_000, 57_001);
+
+    listeners.forEach(
+        listener ->
+            listener.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST));
+
+    verify(fakeExoPlayer, never()).seekToDefaultPosition();
+  }
+
+  @Test
+  public void resumingNonLiveStreamDoesNotSeekToDefaultPosition() {
+    List<Player.Listener> listeners = resumeAt(false, 0, 30_000);
+
+    listeners.forEach(
+        listener ->
+            listener.onPlayWhenReadyChanged(true, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST));
+
+    verify(fakeExoPlayer, never()).seekToDefaultPosition();
+  }
+
+  @Test
+  public void pausingLiveStreamDoesNotSeekToDefaultPosition() {
+    List<Player.Listener> listeners = resumeAt(true, 60_000, 30_000);
+
+    listeners.forEach(
+        listener ->
+            listener.onPlayWhenReadyChanged(false, Player.PLAY_WHEN_READY_CHANGE_REASON_USER_REQUEST));
+
+    verify(fakeExoPlayer, never()).seekToDefaultPosition();
   }
 
   @Test
